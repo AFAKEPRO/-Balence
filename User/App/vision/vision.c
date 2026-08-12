@@ -10,8 +10,8 @@
 #define    COM6_PACKAGE_TAIL_BYTE       0x0D
 #define PC_DATA_LEN		16
 
-static Publisher_t *vision_pub;                   // ×ÔÃéÓ¦ÓÃÏûÏ¢·¢²¼Õß(×ÔÃé·´À¡¸øcmd)
-Vision_Upload_Data_s vision_feedback_data; // »Ø´«¸øcmdµÄÔÆÌ¨×´Ì¬ĞÅÏ¢
+static Publisher_t *vision_pub;                   // è‡ªç„åº”ç”¨æ¶ˆæ¯å‘å¸ƒè€…(è‡ªç„åé¦ˆç»™cmd)
+Vision_Upload_Data_s vision_feedback_data; // å›ä¼ ç»™cmdçš„äº‘å°çŠ¶æ€ä¿¡æ¯
 
 xPC_Data Data_PC;
 uint8_t message[PC_DATA_LEN];
@@ -19,13 +19,13 @@ uint8_t data_from_pc[PC_DATA_LEN];
 
 void vision_sendmessage(aim_mod_e mode,float roll, float pitch, float yaw) 
 {
-	// Ìî³äÖ¡Í·£¬³¤¶È£¬cmd1ºÍspeed
+	// å¡«å……å¸§å¤´ï¼Œé•¿åº¦ï¼Œcmd1å’Œspeed
 	message[0] = COM6_PACKAGE_HEADER;
 	message[1] = mode;
 	memcpy(&message[2], &roll, 4);
 	memcpy(&message[6], &pitch, 4);
 	memcpy(&message[10], &yaw, 4);
-	//·¢ËÍÊı¾İ¸øPC
+	//å‘é€æ•°æ®ç»™PC
 	message[14]= 0;
 	message[15]= COM6_PACKAGE_TAIL_BYTE;
 	CDC_Transmit_FS(message,PC_DATA_LEN);

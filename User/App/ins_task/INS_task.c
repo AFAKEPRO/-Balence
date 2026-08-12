@@ -4,9 +4,9 @@
   * @brief      use bmi088 to calculate the euler angle. no use ist8310, so only
   *             enable data ready pin to save cpu time.enalbe bmi088 data ready
   *             enable spi DMA to save the time spi transmit
-  *             Ö÷ÒªÀûÓÃÍÓÂİÒÇbmi088£¬´ÅÁ¦¼Æist8310£¬Íê³É×ËÌ¬½âËã£¬µÃ³öÅ·À­½Ç£¬
-  *             Ìá¹©Í¨¹ıbmi088µÄdata ready ÖĞ¶ÏÍê³ÉÍâ²¿´¥·¢£¬¼õÉÙÊı¾İµÈ´ıÑÓ³Ù
-  *             Í¨¹ıDMAµÄSPI´«Êä½ÚÔ¼CPUÊ±¼ä.
+  *             ä¸»è¦åˆ©ç”¨é™€èºä»ªbmi088ï¼Œç£åŠ›è®¡ist8310ï¼Œå®Œæˆå§¿æ€è§£ç®—ï¼Œå¾—å‡ºæ¬§æ‹‰è§’ï¼Œ
+  *             æä¾›é€šè¿‡bmi088çš„data ready ä¸­æ–­å®Œæˆå¤–éƒ¨è§¦å‘ï¼Œå‡å°‘æ•°æ®ç­‰å¾…å»¶è¿Ÿ
+  *             é€šè¿‡DMAçš„SPIä¼ è¾“èŠ‚çº¦CPUæ—¶é—´.
   * @note       
   * @history
   *  Version    Date            Author          Modification
@@ -39,7 +39,7 @@
 
 #include "vision.h"
 
-#define IMU_temp_PWM(pwm)  imu_pwm_set(pwm)                    //pwm¸ø¶¨
+#define IMU_temp_PWM(pwm)  imu_pwm_set(pwm)                    //pwmç»™å®š
 
 
 //extern SPI_HandleTypeDef hspi1;
@@ -98,14 +98,14 @@ void INS_task(void)
 		INS.Gyro[IMU_Y] = BMI088.Gyro[IMU_Y];
 		INS.Gyro[IMU_Z] = BMI088.Gyro[IMU_Z];
 		
-		// demo function,ÓÃÓÚĞŞÕı°²×°Îó²î,¿ÉÒÔ²»¹Ü,±¾demoÔİÊ±Ã»ÓÃ
+		// demo function,ç”¨äºä¿®æ­£å®‰è£…è¯¯å·®,å¯ä»¥ä¸ç®¡,æœ¬demoæš‚æ—¶æ²¡ç”¨
 		IMU_Param_Correction(&IMU_Param, INS.Gyro, INS.Accel);
 		
-		// ¼ÆËãÖØÁ¦¼ÓËÙ¶ÈÊ¸Á¿ºÍbÏµµÄXYÁ½ÖáµÄ¼Ğ½Ç,¿ÉÓÃ×÷¹¦ÄÜÀ©Õ¹,±¾demoÔİÊ±Ã»ÓÃ
+		// è®¡ç®—é‡åŠ›åŠ é€Ÿåº¦çŸ¢é‡å’Œbç³»çš„XYä¸¤è½´çš„å¤¹è§’,å¯ç”¨ä½œåŠŸèƒ½æ‰©å±•,æœ¬demoæš‚æ—¶æ²¡ç”¨
 		INS.atanxz = -atan2f(INS.Accel[IMU_X], INS.Accel[IMU_Z]) * 180 / PI;
 		INS.atanyz = atan2f(INS.Accel[IMU_Y], INS.Accel[IMU_Z]) * 180 / PI;
 
-		// ºËĞÄº¯Êı,EKF¸üĞÂËÄÔªÊı
+		// æ ¸å¿ƒå‡½æ•°,EKFæ›´æ–°å››å…ƒæ•°
 //		IMU_QuaternionEKF_Update(INS.Gyro[IMU_X], INS.Gyro[IMU_Y], INS.Gyro[IMU_Z], INS.Accel[IMU_X], INS.Accel[IMU_Y], INS.Accel[IMU_Z], dt);
 
 //		memcpy(INS.q, QEKF_INS.q, sizeof(QEKF_INS.q));
@@ -113,22 +113,22 @@ void INS_task(void)
 		MahonyAHRSupdateIMU(INS.q,INS.Gyro[IMU_X], INS.Gyro[IMU_Y], INS.Gyro[IMU_Z], INS.Accel[IMU_X], INS.Accel[IMU_Y], INS.Accel[IMU_Z]);
 //		MahonyAHRSupdate(INS.q,INS.Gyro[IMU_X], INS.Gyro[IMU_Y], INS.Gyro[IMU_Z], INS.Accel[IMU_X], INS.Accel[IMU_Y], INS.Accel[IMU_Z], mag.x, mag.y, mag.z);
 		
-		// »úÌåÏµ»ùÏòÁ¿×ª»»µ½µ¼º½×ø±êÏµ£¬±¾ÀıÑ¡È¡¹ßĞÔÏµÎªµ¼º½Ïµ
+		// æœºä½“ç³»åŸºå‘é‡è½¬æ¢åˆ°å¯¼èˆªåæ ‡ç³»ï¼Œæœ¬ä¾‹é€‰å–æƒ¯æ€§ç³»ä¸ºå¯¼èˆªç³»
 		BodyFrameToEarthFrame(xb, INS.xn, INS.q);
 		BodyFrameToEarthFrame(yb, INS.yn, INS.q);
 		BodyFrameToEarthFrame(zb, INS.zn, INS.q);
 		
-		// ½«ÖØÁ¦´Óµ¼º½×ø±êÏµn×ª»»µ½»úÌåÏµb,Ëæºó¸ù¾İ¼ÓËÙ¶È¼ÆÊı¾İ¼ÆËãÔË¶¯¼ÓËÙ¶È
+		// å°†é‡åŠ›ä»å¯¼èˆªåæ ‡ç³»nè½¬æ¢åˆ°æœºä½“ç³»b,éšåæ ¹æ®åŠ é€Ÿåº¦è®¡æ•°æ®è®¡ç®—è¿åŠ¨åŠ é€Ÿåº¦
 		float gravity_b[3];
 		EarthFrameToBodyFrame(gravity, gravity_b, INS.q);
 		
-		for (uint8_t i = 0; i < 3; i++) // Í¬Ñù¹ıÒ»¸öµÍÍ¨ÂË²¨
+		for (uint8_t i = 0; i < 3; i++) // åŒæ ·è¿‡ä¸€ä¸ªä½é€šæ»¤æ³¢
 		{
 			INS.MotionAccel_b[i] = (INS.Accel[i] - gravity_b[i]) * dt / (INS.AccelLPF + dt) + INS.MotionAccel_b[i] * INS.AccelLPF / (INS.AccelLPF + dt);//AccelLPF=0.0085
 		}
-		BodyFrameToEarthFrame(INS.MotionAccel_b, INS.MotionAccel_n, INS.q); // ×ª»»»Øµ¼º½Ïµn
+		BodyFrameToEarthFrame(INS.MotionAccel_b, INS.MotionAccel_n, INS.q); // è½¬æ¢å›å¯¼èˆªç³»n
 		
-		// »ñÈ¡×îÖÕÊı¾İ
+		// è·å–æœ€ç»ˆæ•°æ®
 //		INS.Yaw = QEKF_INS.Yaw*0.01745329252f;	
 //		INS.Pitch = QEKF_INS.Pitch*0.01745329252f;	
 //		INS.Roll = QEKF_INS.Roll*0.01745329252f;	
@@ -266,8 +266,8 @@ attitude_t *GetInsData(void)
 }
 
 /**
-  * @brief          ¿ØÖÆbmi088µÄÎÂ¶È
-  * @param[in]      temp:bmi088µÄÎÂ¶È
+  * @brief          æ§åˆ¶bmi088çš„æ¸©åº¦
+  * @param[in]      temp:bmi088çš„æ¸©åº¦
   * @retval         none
   */
 //static void imu_temp_control(float temp)
@@ -286,14 +286,14 @@ attitude_t *GetInsData(void)
 //    }
 //    else
 //    {
-//        //ÔÚÃ»ÓĞ´ïµ½ÉèÖÃµÄÎÂ¶È£¬Ò»Ö±×î´ó¹¦ÂÊ¼ÓÈÈ
+//        //åœ¨æ²¡æœ‰è¾¾åˆ°è®¾ç½®çš„æ¸©åº¦ï¼Œä¸€ç›´æœ€å¤§åŠŸç‡åŠ çƒ­
 //        //in beginning, max power
 //        if (temp > 45.0f)
 //        {
 //            temp_constant_time++;
 //            if (temp_constant_time > 200)
 //            {
-//                //´ïµ½ÉèÖÃÎÂ¶È£¬½«»ı·ÖÏîÉèÖÃÎªÒ»°ë×î´ó¹¦ÂÊ£¬¼ÓËÙÊÕÁ²
+//                //è¾¾åˆ°è®¾ç½®æ¸©åº¦ï¼Œå°†ç§¯åˆ†é¡¹è®¾ç½®ä¸ºä¸€åŠæœ€å¤§åŠŸç‡ï¼ŒåŠ é€Ÿæ”¶æ•›
 //                //
 //                first_temperate = 1;
 //                imu_temp_pid.Iout = MPU6500_TEMP_PWM_MAX / 2.0f;

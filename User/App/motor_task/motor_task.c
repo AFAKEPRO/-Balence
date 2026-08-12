@@ -8,7 +8,7 @@
 
 void MotorControlTask(void)
 {
-	static uint8_t cnt = 0; 	//Éè¶¨²»Í¬µç»úµÄÈÎÎñÆµÂÊ
+	static uint8_t cnt = 0; 	//è®¾å®šä¸åŒç”µæœºçš„ä»»åŠ¡é¢‘ç‡
 	FeedForwardControl();
 	DJIMotorControl();
 //	RMDMotorControl();

@@ -4,9 +4,9 @@
   * @brief      use bmi088 to calculate the euler angle. no use ist8310, so only
   *             enable data ready pin to save cpu time.enalbe bmi088 data ready
   *             enable spi DMA to save the time spi transmit
-  *             Ö÷ÒªÀûÓÃÍÓÂİÒÇbmi088£¬´ÅÁ¦¼Æist8310£¬Íê³É×ËÌ¬½âËã£¬µÃ³öÅ·À­½Ç£¬
-  *             Ìá¹©Í¨¹ıbmi088µÄdata ready ÖĞ¶ÏÍê³ÉÍâ²¿´¥·¢£¬¼õÉÙÊı¾İµÈ´ıÑÓ³Ù
-  *             Í¨¹ıDMAµÄSPI´«Êä½ÚÔ¼CPUÊ±¼ä.
+  *             ä¸»è¦åˆ©ç”¨é™€èºä»ªbmi088ï¼Œç£åŠ›è®¡ist8310ï¼Œå®Œæˆå§¿æ€è§£ç®—ï¼Œå¾—å‡ºæ¬§æ‹‰è§’ï¼Œ
+  *             æä¾›é€šè¿‡bmi088çš„data ready ä¸­æ–­å®Œæˆå¤–éƒ¨è§¦å‘ï¼Œå‡å°‘æ•°æ®ç­‰å¾…å»¶è¿Ÿ
+  *             é€šè¿‡DMAçš„SPIä¼ è¾“èŠ‚çº¦CPUæ—¶é—´.
   * @note       
   * @history
   *  Version    Date            Author          Modification
@@ -29,14 +29,14 @@
 #include "QuaternionEKF.h"
 
 
-#define TEMPERATURE_PID_KP 1000.0f //ÎÂ¶È¿ØÖÆPIDµÄkp	1600
-#define TEMPERATURE_PID_KI 20.0f    //ÎÂ¶È¿ØÖÆPIDµÄki	0.2
-#define TEMPERATURE_PID_KD 0.0f    //ÎÂ¶È¿ØÖÆPIDµÄkd	0
+#define TEMPERATURE_PID_KP 1000.0f //æ¸©åº¦æ§åˆ¶PIDçš„kp	1600
+#define TEMPERATURE_PID_KI 20.0f    //æ¸©åº¦æ§åˆ¶PIDçš„ki	0.2
+#define TEMPERATURE_PID_KD 0.0f    //æ¸©åº¦æ§åˆ¶PIDçš„kd	0
 
-#define TEMPERATURE_PID_MAX_OUT   2000.0f //ÎÂ¶È¿ØÖÆPIDµÄmax_out	4500
-#define TEMPERATURE_PID_MAX_IOUT 	300.0f  //ÎÂ¶È¿ØÖÆPIDµÄmax_iout	4400
+#define TEMPERATURE_PID_MAX_OUT   2000.0f //æ¸©åº¦æ§åˆ¶PIDçš„max_out	4500
+#define TEMPERATURE_PID_MAX_IOUT 	300.0f  //æ¸©åº¦æ§åˆ¶PIDçš„max_iout	4400
 
-//#define MPU6500_TEMP_PWM_MAX 5000 //mpu6500¿ØÖÆÎÂ¶ÈµÄÉèÖÃTIMµÄÖØÔØÖµ£¬¼´¸øPWM×î´óÎª MPU6500_TEMP_PWM_MAX - 1
+//#define MPU6500_TEMP_PWM_MAX 5000 //mpu6500æ§åˆ¶æ¸©åº¦çš„è®¾ç½®TIMçš„é‡è½½å€¼ï¼Œå³ç»™PWMæœ€å¤§ä¸º MPU6500_TEMP_PWM_MAX - 1
 
 
 //----------------------
@@ -49,14 +49,14 @@
 
 typedef struct
 {
-    float q[4]; // ËÄÔªÊı¹À¼ÆÖµ
+    float q[4]; // å››å…ƒæ•°ä¼°è®¡å€¼
 
-    float MotionAccel_b[3]; // »úÌå×ø±ê¼ÓËÙ¶È
-    float MotionAccel_n[3]; // ¾ø¶ÔÏµ¼ÓËÙ¶È
+    float MotionAccel_b[3]; // æœºä½“åæ ‡åŠ é€Ÿåº¦
+    float MotionAccel_n[3]; // ç»å¯¹ç³»åŠ é€Ÿåº¦
 
-    float AccelLPF; // ¼ÓËÙ¶ÈµÍÍ¨ÂË²¨ÏµÊı
+    float AccelLPF; // åŠ é€Ÿåº¦ä½é€šæ»¤æ³¢ç³»æ•°
 
-    // ¼ÓËÙ¶ÈÔÚ¾ø¶ÔÏµµÄÏòÁ¿±íÊ¾
+    // åŠ é€Ÿåº¦åœ¨ç»å¯¹ç³»çš„å‘é‡è¡¨ç¤º
     float xn[3];
     float yn[3];
     float zn[3];
@@ -64,9 +64,9 @@ typedef struct
     float atanxz;
     float atanyz;
 
-    // Î»×Ë
-	float Gyro[3];  // ½ÇËÙ¶È		roll pitch yaw
-    float Accel[3]; // ¼ÓËÙ¶È
+    // ä½å§¿
+	float Gyro[3];  // è§’é€Ÿåº¦		roll pitch yaw
+    float Accel[3]; // åŠ é€Ÿåº¦
     float Roll;
     float Pitch;
     float Yaw;
@@ -75,17 +75,17 @@ typedef struct
 
 typedef struct
 {
-    float Gyro[3];  // ½ÇËÙ¶È
-    float Accel[3]; // ¼ÓËÙ¶È
-    // »¹ĞèÒªÔö¼Ó½ÇËÙ¶ÈÊı¾İ
+    float Gyro[3];  // è§’é€Ÿåº¦
+    float Accel[3]; // åŠ é€Ÿåº¦
+    // è¿˜éœ€è¦å¢åŠ è§’é€Ÿåº¦æ•°æ®
     float Roll;
     float Pitch;
     float Yaw;
     float YawTotalAngle;
-} attitude_t; // ×îÖÕ½âËãµÃµ½µÄ½Ç¶È,ÒÔ¼°yaw×ª¶¯µÄ×Ü½Ç¶È(·½±ã¶àÈ¦¿ØÖÆ)
+} attitude_t; // æœ€ç»ˆè§£ç®—å¾—åˆ°çš„è§’åº¦,ä»¥åŠyawè½¬åŠ¨çš„æ€»è§’åº¦(æ–¹ä¾¿å¤šåœˆæ§åˆ¶)
 
 /**
- * @brief ÓÃÓÚĞŞÕı°²×°Îó²îµÄ²ÎÊı,demoÖĞ¿ÉÎŞÊÓ
+ * @brief ç”¨äºä¿®æ­£å®‰è£…è¯¯å·®çš„å‚æ•°,demoä¸­å¯æ— è§†
  * 
  */
 typedef struct

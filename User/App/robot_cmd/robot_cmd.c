@@ -19,44 +19,44 @@
 
 //#define yaw_align_angle 151.346f
 
-RC_ctrl_t *rc_data;              // Ò£¿ØÆ÷Êı¾İ,³õÊ¼»¯Ê±·µ»Ø
+RC_ctrl_t *rc_data;              // é¥æ§å™¨æ•°æ®,åˆå§‹åŒ–æ—¶è¿”å›
 attitude_t *ins_data;
 cali_data_t *calibrate_data;
 
-static Publisher_t *chassis_cmd_pub;   // µ×ÅÌ¿ØÖÆÏûÏ¢·¢²¼Õß
-static Subscriber_t *chassis_feed_sub; // µ×ÅÌ·´À¡ĞÅÏ¢¶©ÔÄÕß
-Chassis_Ctrl_Cmd_s chassis_cmd_send;      // ·¢ËÍ¸øµ×ÅÌÓ¦ÓÃµÄĞÅÏ¢,°üÀ¨¿ØÖÆĞÅÏ¢ºÍUI»æÖÆÏà¹Ø
-Chassis_Upload_Data_s chassis_fetch_data; // ´Óµ×ÅÌÓ¦ÓÃ½ÓÊÕµÄ·´À¡ĞÅÏ¢ĞÅÏ¢,µ×ÅÌ¹¦ÂÊÇ¹¿ÚÈÈÁ¿Óëµ×ÅÌÔË¶¯×´Ì¬µÈ
+static Publisher_t *chassis_cmd_pub;   // åº•ç›˜æ§åˆ¶æ¶ˆæ¯å‘å¸ƒè€…
+static Subscriber_t *chassis_feed_sub; // åº•ç›˜åé¦ˆä¿¡æ¯è®¢é˜…è€…
+Chassis_Ctrl_Cmd_s chassis_cmd_send;      // å‘é€ç»™åº•ç›˜åº”ç”¨çš„ä¿¡æ¯,åŒ…æ‹¬æ§åˆ¶ä¿¡æ¯å’ŒUIç»˜åˆ¶ç›¸å…³
+Chassis_Upload_Data_s chassis_fetch_data; // ä»åº•ç›˜åº”ç”¨æ¥æ”¶çš„åé¦ˆä¿¡æ¯ä¿¡æ¯,åº•ç›˜åŠŸç‡æªå£çƒ­é‡ä¸åº•ç›˜è¿åŠ¨çŠ¶æ€ç­‰
 
-static Publisher_t *gimbal_cmd_pub;            // ÔÆÌ¨¿ØÖÆÏûÏ¢·¢²¼Õß
-static Subscriber_t *gimbal_feed_sub;          // ÔÆÌ¨·´À¡ĞÅÏ¢¶©ÔÄÕß
-Gimbal_Ctrl_Cmd_s gimbal_cmd_send;      // ´«µİ¸øÔÆÌ¨µÄ¿ØÖÆĞÅÏ¢
-Gimbal_Upload_Data_s gimbal_fetch_data; // ´ÓÔÆÌ¨»ñÈ¡µÄ·´À¡ĞÅÏ¢
+static Publisher_t *gimbal_cmd_pub;            // äº‘å°æ§åˆ¶æ¶ˆæ¯å‘å¸ƒè€…
+static Subscriber_t *gimbal_feed_sub;          // äº‘å°åé¦ˆä¿¡æ¯è®¢é˜…è€…
+Gimbal_Ctrl_Cmd_s gimbal_cmd_send;      // ä¼ é€’ç»™äº‘å°çš„æ§åˆ¶ä¿¡æ¯
+Gimbal_Upload_Data_s gimbal_fetch_data; // ä»äº‘å°è·å–çš„åé¦ˆä¿¡æ¯
 
-static Publisher_t *shoot_cmd_pub;           // ·¢Éä¿ØÖÆÏûÏ¢·¢²¼Õß
-static Subscriber_t *shoot_feed_sub;         // ·¢Éä·´À¡ĞÅÏ¢¶©ÔÄÕß
-Shoot_Ctrl_Cmd_s shoot_cmd_send;      // ´«µİ¸ø·¢ÉäµÄ¿ØÖÆĞÅÏ¢
-Shoot_Upload_Data_s shoot_fetch_data; // ´Ó·¢Éä»ñÈ¡µÄ·´À¡ĞÅÏ¢
+static Publisher_t *shoot_cmd_pub;           // å‘å°„æ§åˆ¶æ¶ˆæ¯å‘å¸ƒè€…
+static Subscriber_t *shoot_feed_sub;         // å‘å°„åé¦ˆä¿¡æ¯è®¢é˜…è€…
+Shoot_Ctrl_Cmd_s shoot_cmd_send;      // ä¼ é€’ç»™å‘å°„çš„æ§åˆ¶ä¿¡æ¯
+Shoot_Upload_Data_s shoot_fetch_data; // ä»å‘å°„è·å–çš„åé¦ˆä¿¡æ¯
 
-static Subscriber_t *vision_feed_sub;         // ÊÓ¾õ·´À¡ĞÅÏ¢¶©ÔÄÕß
-Vision_Upload_Data_s vision_fetch_data; // ´ÓÊÓ¾õ»ñÈ¡µÄ·´À¡ĞÅÏ¢
+static Subscriber_t *vision_feed_sub;         // è§†è§‰åé¦ˆä¿¡æ¯è®¢é˜…è€…
+Vision_Upload_Data_s vision_fetch_data; // ä»è§†è§‰è·å–çš„åé¦ˆä¿¡æ¯
 
-static Robot_Status_e robot_state; // »úÆ÷ÈËÕûÌå¹¤×÷×´Ì¬
-static float yaw_align_angle;	//ÖØĞÂ¶¨Òå±äÁ¿´¢´æ¶ÔÆë½Ç¶È£¬Ìá¸ß¿É¶ÁĞÔ£¬±ÜÃâ¶Ôcali_dataµÄÖ±½Ó²Ù×÷
+static Robot_Status_e robot_state; // æœºå™¨äººæ•´ä½“å·¥ä½œçŠ¶æ€
+static float yaw_align_angle;	//é‡æ–°å®šä¹‰å˜é‡å‚¨å­˜å¯¹é½è§’åº¦ï¼Œæé«˜å¯è¯»æ€§ï¼Œé¿å…å¯¹cali_dataçš„ç›´æ¥æ“ä½œ
 
 static void CalcOffsetAngle()
 {
-    // ±ğÃûangleÌá¸ß¿É¶ÁĞÔ,²»È»Ì«³¤ÁË²»ºÃ¿´,ËäÈ»»ù±¾²»»á¶¯Õâ¸öº¯Êı
+    // åˆ«åangleæé«˜å¯è¯»æ€§,ä¸ç„¶å¤ªé•¿äº†ä¸å¥½çœ‹,è™½ç„¶åŸºæœ¬ä¸ä¼šåŠ¨è¿™ä¸ªå‡½æ•°
     static float angle;
-    angle = gimbal_fetch_data.yaw_motor_single_round_angle; // ´ÓÔÆÌ¨»ñÈ¡µÄµ±Ç°yawµç»úµ¥È¦½Ç¶È
-#if YAW_ECD_SMALL_THAN_4096                               // Èç¹û´óÓÚ180¶È
+    angle = gimbal_fetch_data.yaw_motor_single_round_angle; // ä»äº‘å°è·å–çš„å½“å‰yawç”µæœºå•åœˆè§’åº¦
+#if YAW_ECD_SMALL_THAN_4096                               // å¦‚æœå¤§äº180åº¦
     if (angle > yaw_align_angle && angle <= 180.0f + yaw_align_angle)
         chassis_cmd_send.offset_angle = angle - yaw_align_angle;
     else if (angle > 180.0f + yaw_align_angle)
         chassis_cmd_send.offset_angle = angle - yaw_align_angle - 360.0f;
     else
         chassis_cmd_send.offset_angle = angle - yaw_align_angle;
-#else // Ğ¡ÓÚ180¶È
+#else // å°äº180åº¦
     if (angle > yaw_align_angle)
         chassis_cmd_send.offset_angle = (angle - yaw_align_angle);
     else if (angle <= yaw_align_angle && angle >= yaw_align_angle - PI)
@@ -102,15 +102,15 @@ void VisionControlSet(void)
 
 static void RemoteControlSet(void)
 {
-	// ÔÆÌ¨²ÎÊı,È·¶¨ÔÆÌ¨¿ØÖÆÊı¾İ
+	// äº‘å°å‚æ•°,ç¡®å®šäº‘å°æ§åˆ¶æ•°æ®
 	gimbal_cmd_send.pitch -= PitchLimit(0.00001f * (float)rc_data[TEMP].rc.rocker_l1);
 	gimbal_cmd_send.yaw = RadFormat(gimbal_cmd_send.yaw - 0.00001f * (float)rc_data[TEMP].rc.rocker_l_);
-    // µ×ÅÌ²ÎÊı,Ä¿Ç°Ã»ÓĞ¼ÓÈëĞ¡ÍÓÂİ(µ÷ÊÔËÆºõÔİÊ±Ã»ÓĞ±ØÒª),ÏµÊıĞèÒªµ÷Õû
-	chassis_cmd_send.vx = 100.0f  * (float)rc_data[TEMP].rc.rocker_r_; // _Ë®Æ½·½Ïò
-	chassis_cmd_send.vy = 100.0f * (float)rc_data[TEMP].rc.rocker_r1; // 1ÊıÖµ·½Ïò
+    // åº•ç›˜å‚æ•°,ç›®å‰æ²¡æœ‰åŠ å…¥å°é™€èº(è°ƒè¯•ä¼¼ä¹æš‚æ—¶æ²¡æœ‰å¿…è¦),ç³»æ•°éœ€è¦è°ƒæ•´
+	chassis_cmd_send.vx = 100.0f  * (float)rc_data[TEMP].rc.rocker_r_; // _æ°´å¹³æ–¹å‘
+	chassis_cmd_send.vy = 100.0f * (float)rc_data[TEMP].rc.rocker_r1; // 1æ•°å€¼æ–¹å‘
 	
-/*==============================ÎŞÁ¦¼ì²â==============================*/
-	if (switch_is_down(rc_data[TEMP].rc.switch_right)) 				// ÓÒ²à¿ª¹Ø×´Ì¬[ÏÂ],ÎŞÁ¦
+/*==============================æ— åŠ›æ£€æµ‹==============================*/
+	if (switch_is_down(rc_data[TEMP].rc.switch_right)) 				// å³ä¾§å¼€å…³çŠ¶æ€[ä¸‹],æ— åŠ›
 	{
 		robot_state = ROBOT_STOP;                                          
 	}
@@ -118,34 +118,34 @@ static void RemoteControlSet(void)
 	{
         robot_state = ROBOT_READY;
 	}
-/*==============================ÓÒ²¦¸Ë==============================*/
-    if (switch_is_up(rc_data[TEMP].rc.switch_right)) 				// ÓÒ²à¿ª¹Ø×´Ì¬[ÉÏ],µ×ÅÌ¸úËæÔÆÌ¨
+/*==============================å³æ‹¨æ†==============================*/
+    if (switch_is_up(rc_data[TEMP].rc.switch_right)) 				// å³ä¾§å¼€å…³çŠ¶æ€[ä¸Š],åº•ç›˜è·Ÿéšäº‘å°
     {
         chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
         gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
     }
-    else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) 			// ÓÒ²à¿ª¹Ø×´Ì¬[ÖĞ],µ×ÅÌºÍÔÆÌ¨·ÖÀë,µ×ÅÌ±£³Ö²»×ª¶¯
+    else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) 			// å³ä¾§å¼€å…³çŠ¶æ€[ä¸­],åº•ç›˜å’Œäº‘å°åˆ†ç¦»,åº•ç›˜ä¿æŒä¸è½¬åŠ¨
     {
         chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
     }
-/*==============================×ó²¦¸Ë==============================*/
-	if (switch_is_down(rc_data[TEMP].rc.switch_left)) 				// ×ó²à¿ª¹Ø×´Ì¬Îª[ÏÂ],ÊÓ¾õÄ£Ê½
+/*==============================å·¦æ‹¨æ†==============================*/
+	if (switch_is_down(rc_data[TEMP].rc.switch_left)) 				// å·¦ä¾§å¼€å…³çŠ¶æ€ä¸º[ä¸‹],è§†è§‰æ¨¡å¼
     {
 		VisionControlSet();
     }
-	else if (switch_is_up(rc_data[TEMP].rc.switch_left)) 			// ×ó²à¿ª¹Ø×´Ì¬Îª[ÉÏ],ÊÓ¾õÄ£Ê½
+	else if (switch_is_up(rc_data[TEMP].rc.switch_left)) 			// å·¦ä¾§å¼€å…³çŠ¶æ€ä¸º[ä¸Š],è§†è§‰æ¨¡å¼
     {
 		chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
     }
-/*==============================Ğ£×¼¼ì²â==============================*/
-	if(switch_is_down(rc_data[TEMP].rc.switch_left) && switch_is_down(rc_data[TEMP].rc.switch_right))	//Á©²à¿ª¹Ø²¦ÏÂ,¼ì²âĞ£×¼Ìõ¼ş
+/*==============================æ ¡å‡†æ£€æµ‹==============================*/
+	if(switch_is_down(rc_data[TEMP].rc.switch_left) && switch_is_down(rc_data[TEMP].rc.switch_right))	//ä¿©ä¾§å¼€å…³æ‹¨ä¸‹,æ£€æµ‹æ ¡å‡†æ¡ä»¶
 	{
 		CalibrateTask(rc_data);
 	}
-/*==============================·¢Éä¼ì²â==============================*/
-    // Ä¦²ÁÂÖ¿ØÖÆ,²¦ÂÖÏòÉÏ´òÎª¸º,ÏòÏÂÎªÕı
-    if (rc_data[TEMP].rc.dial < -100 || rc_data[TEMP].rc.dial > 100) // ÏòÉÏ(ÏÂ)³¬¹ı100,´ò¿ªÄ¦²ÁÂÖ
+/*==============================å‘å°„æ£€æµ‹==============================*/
+    // æ‘©æ“¦è½®æ§åˆ¶,æ‹¨è½®å‘ä¸Šæ‰“ä¸ºè´Ÿ,å‘ä¸‹ä¸ºæ­£
+    if (rc_data[TEMP].rc.dial < -100 || rc_data[TEMP].rc.dial > 100) // å‘ä¸Š(ä¸‹)è¶…è¿‡100,æ‰“å¼€æ‘©æ“¦è½®
 	{
         shoot_cmd_send.friction_mode = FRICTION_ON;
 	}
@@ -153,7 +153,7 @@ static void RemoteControlSet(void)
 	{
         shoot_cmd_send.friction_mode = FRICTION_OFF;
 	}
-    // ²¦µ¯¿ØÖÆ,Ò£¿ØÆ÷¹Ì¶¨ÎªÒ»ÖÖ²¦µ¯Ä£Ê½,¿É×ÔĞĞÑ¡Ôñ
+    // æ‹¨å¼¹æ§åˆ¶,é¥æ§å™¨å›ºå®šä¸ºä¸€ç§æ‹¨å¼¹æ¨¡å¼,å¯è‡ªè¡Œé€‰æ‹©
     if (rc_data[TEMP].rc.dial < -500)
 	{
 		shoot_cmd_send.bullet_speed = TEST;
@@ -169,26 +169,26 @@ static void RemoteControlSet(void)
 	{
         shoot_cmd_send.load_mode = LOAD_STOP;
 	}
-    // ÉäÆµ¿ØÖÆ,¹Ì¶¨Ã¿Ãë1·¢,ºóĞø¿ÉÒÔ¸ù¾İ×ó²à²¦ÂÖµÄÖµ´óĞ¡ÇĞ»»ÉäÆµ,
+    // å°„é¢‘æ§åˆ¶,å›ºå®šæ¯ç§’1å‘,åç»­å¯ä»¥æ ¹æ®å·¦ä¾§æ‹¨è½®çš„å€¼å¤§å°åˆ‡æ¢å°„é¢‘,
     shoot_cmd_send.shoot_rate = 1;
 }
 
 /**
- * @brief ÊäÈëÎª¼üÊóÊ±Ä£Ê½ºÍ¿ØÖÆÁ¿ÉèÖÃ
+ * @brief è¾“å…¥ä¸ºé”®é¼ æ—¶æ¨¡å¼å’Œæ§åˆ¶é‡è®¾ç½®
  *
  */
 static void MouseKeySet(void)
 {
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 15000 - rc_data[TEMP].key[KEY_PRESS].s * 15000; // ÏµÊı´ı²â
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 15000 - rc_data[TEMP].key[KEY_PRESS].s * 15000; // ç³»æ•°å¾…æµ‹
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].d * 15000 - rc_data[TEMP].key[KEY_PRESS].a * 15000;
 	
 	rc_data[TEMP].mouse.x *= -1;
 	rc_data[TEMP].mouse.y *= -1;
-    gimbal_cmd_send.yaw = RadFormat(gimbal_cmd_send.yaw + (float)rc_data[TEMP].mouse.x / 10000); // ÏµÊı´ı²â
+    gimbal_cmd_send.yaw = RadFormat(gimbal_cmd_send.yaw + (float)rc_data[TEMP].mouse.x / 10000); // ç³»æ•°å¾…æµ‹
     gimbal_cmd_send.pitch -= PitchLimit((float)rc_data[TEMP].mouse.y / 10000);
 
-/*==========²Ù×÷Ä£Ê½ÉèÖÃ==========*/
-	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_V] % 3) // V¼üÇĞ»»ÔÆÌ¨Ä£Ê½
+/*==========æ“ä½œæ¨¡å¼è®¾ç½®==========*/
+	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_V] % 3) // Vé”®åˆ‡æ¢äº‘å°æ¨¡å¼
     {
 		case 0:
 			robot_state = ROBOT_STOP;
@@ -206,7 +206,7 @@ static void MouseKeySet(void)
 			shoot_cmd_send.shoot_mode = SHOOT_ON;
 			break;
     }
-    switch (rc_data[TEMP].key[KEY_PRESS].ctrl) // ctrlĞ¡ÍÓÂİ
+    switch (rc_data[TEMP].key[KEY_PRESS].ctrl) // ctrlå°é™€èº
     {
 		case 1:
 			chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
@@ -215,7 +215,7 @@ static void MouseKeySet(void)
 
 			break;
     }
-	 switch (rc_data[TEMP].key[KEY_PRESS].shift) // ´ıÌí¼Ó °´shiftÔÊĞí³¬¹¦ÂÊ ÏûºÄ»º³åÄÜÁ¿
+	 switch (rc_data[TEMP].key[KEY_PRESS].shift) // å¾…æ·»åŠ  æŒ‰shiftå…è®¸è¶…åŠŸç‡ æ¶ˆè€—ç¼“å†²èƒ½é‡
     {
 		case 1:
 			chassis_cmd_send.chassis_mode = MAX_SPEED;
@@ -223,8 +223,8 @@ static void MouseKeySet(void)
 		default:
 			break;
     }
-/*==========·¢ÉäÄ£Ê½ÉèÖÃ==========*/
-	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_F] % 2) // F¼ü¿ª¹ØÄ¦²ÁÂÖ
+/*==========å‘å°„æ¨¡å¼è®¾ç½®==========*/
+	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_F] % 2) // Fé”®å¼€å…³æ‘©æ“¦è½®
     {
 		case 0:
 			shoot_cmd_send.friction_mode = FRICTION_OFF;
@@ -233,7 +233,7 @@ static void MouseKeySet(void)
 			shoot_cmd_send.friction_mode = FRICTION_ON;
 			break;
     }
-	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Z] % 3) // Z¼üÉèÖÃµ¯ËÙ
+	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Z] % 3) // Zé”®è®¾ç½®å¼¹é€Ÿ
     {
 		case 0:
 			shoot_cmd_send.bullet_speed = TEST;
@@ -245,7 +245,7 @@ static void MouseKeySet(void)
 			shoot_cmd_send.bullet_speed = TEST;
 			break;
     }
-	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 2) // E¼üÉèÖÃ·¢ÉäÄ£Ê½
+	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 2) // Eé”®è®¾ç½®å‘å°„æ¨¡å¼
     {
 		case 0:
 			shoot_cmd_send.load_mode = LOAD_1_BULLET;
@@ -254,15 +254,15 @@ static void MouseKeySet(void)
 			shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
 			break;
     }
-	switch(rc_data[TEMP].mouse.press_l)	//Êó±ê×ó¼ü¿ØÖÆ·¢Éä
+	switch(rc_data[TEMP].mouse.press_l)	//é¼ æ ‡å·¦é”®æ§åˆ¶å‘å°„
 	{
 		case 1:
-			break;	//×ó¼ü°´ÏÂ£¬·¢ÉäÄ£Ê½ÎªÉÏÃæ E ¼üËùÉè
+			break;	//å·¦é”®æŒ‰ä¸‹ï¼Œå‘å°„æ¨¡å¼ä¸ºä¸Šé¢ E é”®æ‰€è®¾
 		default:
-			shoot_cmd_send.load_mode = LOAD_STOP;	//×ó¼üÎ´°´ÏÂÍ£Ö¹·¢Éä
+			shoot_cmd_send.load_mode = LOAD_STOP;	//å·¦é”®æœªæŒ‰ä¸‹åœæ­¢å‘å°„
 			break;
 	}
-	switch(rc_data[TEMP].mouse.press_r)	//Êó±êÓÒ¼ü×ÔÃé
+	switch(rc_data[TEMP].mouse.press_r)	//é¼ æ ‡å³é”®è‡ªç„
 	{
 		case 1:
 			VisionControlSet();
@@ -270,8 +270,8 @@ static void MouseKeySet(void)
 		default:
 			break;
 	}
-/*==========ÆäËüÉèÖÃ==========*/
-	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_B] % 4) // B¼üreset
+/*==========å…¶å®ƒè®¾ç½®==========*/
+	switch (rc_data[TEMP].key_count[KEY_PRESS][Key_B] % 4) // Bé”®reset
     {
 		case 3:
 			__disable_irq();
@@ -283,20 +283,20 @@ static void MouseKeySet(void)
 }
 
 /**
- * @brief  ½ô¼±Í£Ö¹,°üÀ¨Ò£¿ØÆ÷×óÉÏ²à²¦ÂÖ´òÂú/ÖØÒªÄ£¿éÀëÏß/Ë«°åÍ¨ĞÅÊ§Ğ§µÈ
- *         Í£Ö¹µÄãĞÖµ'300'´ıĞŞ¸Ä³ÉºÏÊÊµÄÖµ,»ò¸ÄÎª¿ª¹Ø¿ØÖÆ.
+ * @brief  ç´§æ€¥åœæ­¢,åŒ…æ‹¬é¥æ§å™¨å·¦ä¸Šä¾§æ‹¨è½®æ‰“æ»¡/é‡è¦æ¨¡å—ç¦»çº¿/åŒæ¿é€šä¿¡å¤±æ•ˆç­‰
+ *         åœæ­¢çš„é˜ˆå€¼'300'å¾…ä¿®æ”¹æˆåˆé€‚çš„å€¼,æˆ–æ”¹ä¸ºå¼€å…³æ§åˆ¶.
  *
- * @todo   ºóĞøĞŞ¸ÄÎªÒ£¿ØÆ÷ÀëÏßÔòµç»úÍ£Ö¹(¹Ø±ÕÒ£¿ØÆ÷¼±Í£),Í¨¹ı¸øÒ£¿ØÆ÷Ä£¿éÌí¼ÓdaemonÊµÏÖ
+ * @todo   åç»­ä¿®æ”¹ä¸ºé¥æ§å™¨ç¦»çº¿åˆ™ç”µæœºåœæ­¢(å…³é—­é¥æ§å™¨æ€¥åœ),é€šè¿‡ç»™é¥æ§å™¨æ¨¡å—æ·»åŠ daemonå®ç°
  *
  */
 static void EmergencyHandler(void)
 {
-    // Ò£¿ØÆ÷µôÏßÎŞÁ¦
+    // é¥æ§å™¨æ‰çº¿æ— åŠ›
 	if(rc_data->rc_state == 0)
 	{
 		robot_state = ROBOT_STOP;
 	}
-    if (robot_state == ROBOT_STOP) // »¹ĞèÌí¼ÓÖØÒªÓ¦ÓÃºÍÄ£¿éÀëÏßµÄÅĞ¶Ï
+    if (robot_state == ROBOT_STOP) // è¿˜éœ€æ·»åŠ é‡è¦åº”ç”¨å’Œæ¨¡å—ç¦»çº¿çš„åˆ¤æ–­
     {
         gimbal_cmd_send.gimbal_mode = GIMBAL_ZERO_FORCE;
         chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
@@ -305,7 +305,7 @@ static void EmergencyHandler(void)
         shoot_cmd_send.load_mode = LOAD_STOP;
         LOGERROR("[CMD] emergency stop!");
     }
-    // Ò£¿ØÆ÷ÓÒ²à¿ª¹ØÎª[ÉÏ],»Ö¸´Õı³£ÔËĞĞ
+    // é¥æ§å™¨å³ä¾§å¼€å…³ä¸º[ä¸Š],æ¢å¤æ­£å¸¸è¿è¡Œ
     if (switch_is_up(rc_data[TEMP].rc.switch_right))
     {
         robot_state = ROBOT_READY;
@@ -329,46 +329,46 @@ void RobotCmdInit(void)
     chassis_feed_sub = SubRegister("chassis_feed", sizeof(Chassis_Upload_Data_s));
 	vision_feed_sub = SubRegister("vision_feed", sizeof(Vision_Upload_Data_s));
 	
-//	gimbal_cmd_send.pitch = 0;		×÷ÓÃ²»Ã÷£¬±£Áô
+//	gimbal_cmd_send.pitch = 0;		ä½œç”¨ä¸æ˜ï¼Œä¿ç•™
 	robot_state = ROBOT_READY;
 }
 
-/* »úÆ÷ÈËºËĞÄ¿ØÖÆÈÎÎñ,200HzÆµÂÊÔËĞĞ(±ØĞë¸ßÓÚÊÓ¾õ·¢ËÍÆµÂÊ) */
+/* æœºå™¨äººæ ¸å¿ƒæ§åˆ¶ä»»åŠ¡,200Hzé¢‘ç‡è¿è¡Œ(å¿…é¡»é«˜äºè§†è§‰å‘é€é¢‘ç‡) */
 void RobotCMDTask(void)
 {
    // BMI088Acquire(bmi088_test,&bmi088_data) ;
-    // ´ÓÆäËûÓ¦ÓÃ»ñÈ¡»Ø´«Êı¾İ
+    // ä»å…¶ä»–åº”ç”¨è·å–å›ä¼ æ•°æ®
     SubGetMessage(chassis_feed_sub, &chassis_fetch_data);
     SubGetMessage(shoot_feed_sub, &shoot_fetch_data);
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data);
 	SubGetMessage(vision_feed_sub, &vision_fetch_data);
 
-    // ¸ù¾İgimbalµÄ·´À¡Öµ¼ÆËãÔÆÌ¨ºÍµ×ÅÌÕı·½ÏòµÄ¼Ğ½Ç,²»ĞèÒª´«²Î,Í¨¹ıstaticË½ÓĞ±äÁ¿Íê³É
+    // æ ¹æ®gimbalçš„åé¦ˆå€¼è®¡ç®—äº‘å°å’Œåº•ç›˜æ­£æ–¹å‘çš„å¤¹è§’,ä¸éœ€è¦ä¼ å‚,é€šè¿‡staticç§æœ‰å˜é‡å®Œæˆ
     CalcOffsetAngle();
 
 	
-	if(rc_data[TEMP].key[0].keys == 0x00 && rc_data[TEMP].key[1].keys == 0x00 && rc_data[TEMP].key[2].keys == 0)	//¼üÅÌÓĞÊäÈë¼üÅÌ¿ØÖÆ
+	if(rc_data[TEMP].key[0].keys == 0x00 && rc_data[TEMP].key[1].keys == 0x00 && rc_data[TEMP].key[2].keys == 0)	//é”®ç›˜æœ‰è¾“å…¥é”®ç›˜æ§åˆ¶
 	{
 		RemoteControlSet();
 	}
-	else	//¼üÅÌÎŞÊäÈëÒ£¿ØÆ÷¿ØÖÆ
+	else	//é”®ç›˜æ— è¾“å…¥é¥æ§å™¨æ§åˆ¶
 	{
 		MouseKeySet();
 	}
 	
-    EmergencyHandler(); // ´¦ÀíÄ£¿éÀëÏßºÍÒ£¿ØÆ÷¼±Í£µÈ½ô¼±Çé¿ö
+    EmergencyHandler(); // å¤„ç†æ¨¡å—ç¦»çº¿å’Œé¥æ§å™¨æ€¥åœç­‰ç´§æ€¥æƒ…å†µ
 	
-    // ÉèÖÃÊÓ¾õ·¢ËÍÊı¾İ,»¹ĞèÔö¼Ó¼ÓËÙ¶ÈºÍ½ÇËÙ¶ÈÊı¾İ
+    // è®¾ç½®è§†è§‰å‘é€æ•°æ®,è¿˜éœ€å¢åŠ åŠ é€Ÿåº¦å’Œè§’é€Ÿåº¦æ•°æ®
 //	VisionTask(RadToDeg(ins_data->Roll),-RadToDeg(ins_data->Pitch),RadToDeg(ins_data->Yaw));
 
-    // ÍÆËÍÏûÏ¢,Ë«°åÍ¨ĞÅ,ÊÓ¾õÍ¨ĞÅµÈ
+    // æ¨é€æ¶ˆæ¯,åŒæ¿é€šä¿¡,è§†è§‰é€šä¿¡ç­‰
 	shoot_cmd_send.rest_heat = chassis_fetch_data.rest_heat;
 	shoot_cmd_send.heat_limit = chassis_fetch_data.heat_limit;
 	chassis_cmd_send.loader_mode = shoot_cmd_send.load_mode;
 	chassis_cmd_send.friction_mode = shoot_cmd_send.friction_mode;
 	chassis_cmd_send.gimbal_mode = gimbal_cmd_send.gimbal_mode;
 	chassis_cmd_send.vision_state = vision_fetch_data.vision_state;
-    // ÆäËûÓ¦ÓÃËùĞèµÄ¿ØÖÆÊı¾İÔÚremotecontrolsetmodeºÍmousekeysetmodeÖĞÍê³ÉÉèÖÃ
+    // å…¶ä»–åº”ç”¨æ‰€éœ€çš„æ§åˆ¶æ•°æ®åœ¨remotecontrolsetmodeå’Œmousekeysetmodeä¸­å®Œæˆè®¾ç½®
 	
     PubPushMessage(chassis_cmd_pub, (void *)&chassis_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void *)&shoot_cmd_send);

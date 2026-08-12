@@ -6,9 +6,9 @@
 #include "robot_def.h"
 
 CANCommInstance* ins;
-static Subscriber_t *cmd_send_sub;	// ÔÆÌ¨·´À¡ĞÅÏ¢¶©ÔÄÕß
-static Publisher_t *cmd_send_pub;   // ÓÃÓÚ·¢²¼µ×ÅÌµÄÊı¾İ
-Chassis_Ctrl_Cmd_s cmd_send_data; 	// ´ÓÔÆÌ¨»ñÈ¡µÄ·´À¡ĞÅÏ¢
+static Subscriber_t *cmd_send_sub;	// äº‘å°åé¦ˆä¿¡æ¯è®¢é˜…è€…
+static Publisher_t *cmd_send_pub;   // ç”¨äºå‘å¸ƒåº•ç›˜çš„æ•°æ®
+Chassis_Ctrl_Cmd_s cmd_send_data; 	// ä»äº‘å°è·å–çš„åé¦ˆä¿¡æ¯
 chassis_data_rev data_send;
 Chassis_Upload_Data_s *chassis_can_fetch_data;
 
