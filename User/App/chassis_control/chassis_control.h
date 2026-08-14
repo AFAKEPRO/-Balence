@@ -1,6 +1,56 @@
 #ifndef CHASSIS_CONTROL_H
 #define CHASSIS_CONTROL_H
 
+#include "controller.h"
+
+#pragma pack(1)
+
+/**
+ * @brief 五连杆解算数据包
+ * 
+ */
+typedef struct
+{
+
+}Five_Rod_Solve_Data_t;
+
+/**
+ * @brief VMC解算数据包
+ * 
+ */
+typedef enum
+{
+
+}VMC_Solve_Data_t;
+
+/**
+ * @brief 一侧腿部机构的数据 0表示左 1表示右
+ * 
+ */
+typedef struct 
+{
+    float leg_pitch;
+    float leg_pitch_speed;
+    float x;
+    float v_fusion;
+    float chassis_pitch;
+    float chassis_pitch_speed;
+    
+}chassis_control_s;
+
+/**
+ * @brief 一侧驱动轮的数据 0表示左 1表示右
+ * 
+ */
+typedef struct 
+{
+    /* data */
+}chassis_wheel_control_s;
+
+
+#pragma pack()
+
+
 /**
  * @brief 计算腿部关节的相对角度
  * 

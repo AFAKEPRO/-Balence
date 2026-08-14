@@ -1,7 +1,7 @@
 /**
  * @file motor_def.h
  * @author neozng
- * @brief  µç»úÍ¨ÓÃµÄÊı¾İ½á¹¹¶¨Òå
+ * @brief  ç”µæœºé€šç”¨çš„æ•°æ®ç»“æ„å®šä¹‰
  * @version beta
  * @date 2022-11-01
  *
@@ -24,14 +24,14 @@
 #define RAD_2_DEGREE 57.2957795f    // 180/pi
 #define DEGREE_2_RAD 0.01745329252f // pi/180
 
-#define RPM_2_ANGLE_PER_SEC 6.0f       // ¡Á360¡ã/60sec
-#define RPM_2_RAD_PER_SEC 0.104719755f // ¡Á2pi/60sec
+#define RPM_2_ANGLE_PER_SEC 6.0f       // Ã—360Â°/60sec
+#define RPM_2_RAD_PER_SEC 0.104719755f // Ã—2pi/60sec
 
 #define LIMIT_MIN_MAX(x, min, max) (x) = (((x) <= (min)) ? (min) : (((x) >= (max)) ? (max) : (x)))
 
 /**
- * @brief ±Õ»·ÀàĞÍ,Èç¹ûĞèÒª¶à¸ö±Õ»·,ÔòÊ¹ÓÃ»òÔËËã
- *        ÀıÈçĞèÒªËÙ¶È»·ºÍµçÁ÷»·: CURRENT_LOOP|SPEED_LOOP
+ * @brief é—­ç¯ç±»å‹,å¦‚æœéœ€è¦å¤šä¸ªé—­ç¯,åˆ™ä½¿ç”¨æˆ–è¿ç®—
+ *        ä¾‹å¦‚éœ€è¦é€Ÿåº¦ç¯å’Œç”µæµç¯: CURRENT_LOOP|SPEED_LOOP
  */
 typedef enum
 {
@@ -54,21 +54,21 @@ typedef enum
     CURRENT_AND_SPEED_FEEDFORWARD = CURRENT_FEEDFORWARD | SPEED_FEEDFORWARD,
 } Feedfoward_Type_e;
 
-/* ·´À¡À´Ô´Éè¶¨,ÈôÉèÎªOTHER_FEEDÔòĞèÒªÖ¸¶¨Êı¾İÀ´Ô´Ö¸Õë,Ïê¼ûMotor_Controller_s*/
+/* åé¦ˆæ¥æºè®¾å®š,è‹¥è®¾ä¸ºOTHER_FEEDåˆ™éœ€è¦æŒ‡å®šæ•°æ®æ¥æºæŒ‡é’ˆ,è¯¦è§Motor_Controller_s*/
 typedef enum
 {
     MOTOR_FEED = 0,
     OTHER_FEED,
 } Feedback_Source_e;
 
-/* µç»úÕı·´×ª±êÖ¾ */
+/* ç”µæœºæ­£åè½¬æ ‡å¿— */
 typedef enum
 {
     MOTOR_DIRECTION_NORMAL = 0,
     MOTOR_DIRECTION_REVERSE = 1
 } Motor_Reverse_Flag_e;
 
-/* ·´À¡Á¿Õı·´±êÖ¾ */
+/* åé¦ˆé‡æ­£åæ ‡å¿— */
 typedef enum
 {
     FEEDBACK_DIRECTION_NORMAL = 0,
@@ -86,24 +86,24 @@ typedef enum
 	FORMAT_ENABLE = 1,
 } Rad_Formt_Flag_e;
 
-/* µç»ú¿ØÖÆÉèÖÃ,°üÀ¨±Õ»·ÀàĞÍ,·´×ª±êÖ¾ºÍ·´À¡À´Ô´ */
+/* ç”µæœºæ§åˆ¶è®¾ç½®,åŒ…æ‹¬é—­ç¯ç±»å‹,åè½¬æ ‡å¿—å’Œåé¦ˆæ¥æº */
 typedef struct
 {
-    Closeloop_Type_e outer_loop_type;              // ×îÍâ²ãµÄ±Õ»·,Î´ÉèÖÃÊ±Ä¬ÈÏÎª×î¸ß¼¶µÄ±Õ»·
-    Closeloop_Type_e close_loop_type;              // Ê¹ÓÃ¼¸¸ö±Õ»·(´®¼¶)
-    Motor_Reverse_Flag_e motor_reverse_flag;       // ÊÇ·ñ·´×ª
-    Feedback_Reverse_Flag_e feedback_reverse_flag; // ·´À¡ÊÇ·ñ·´Ïò
-    Feedback_Source_e angle_feedback_source;       // ½Ç¶È·´À¡ÀàĞÍ
-    Feedback_Source_e speed_feedback_source;       // ËÙ¶È·´À¡ÀàĞÍ
-    Feedfoward_Type_e feedforward_flag;            // Ç°À¡±êÖ¾
+    Closeloop_Type_e outer_loop_type;              // æœ€å¤–å±‚çš„é—­ç¯,æœªè®¾ç½®æ—¶é»˜è®¤ä¸ºæœ€é«˜çº§çš„é—­ç¯
+    Closeloop_Type_e close_loop_type;              // ä½¿ç”¨å‡ ä¸ªé—­ç¯(ä¸²çº§)
+    Motor_Reverse_Flag_e motor_reverse_flag;       // æ˜¯å¦åè½¬
+    Feedback_Reverse_Flag_e feedback_reverse_flag; // åé¦ˆæ˜¯å¦åå‘
+    Feedback_Source_e angle_feedback_source;       // è§’åº¦åé¦ˆç±»å‹
+    Feedback_Source_e speed_feedback_source;       // é€Ÿåº¦åé¦ˆç±»å‹
+    Feedfoward_Type_e feedforward_flag;            // å‰é¦ˆæ ‡å¿—
 	Rad_Formt_Flag_e angle_rad_format_flag;
 } Motor_Control_Setting_s;
 
-/* µç»ú¿ØÖÆÆ÷,°üÀ¨ÆäËûÀ´Ô´µÄ·´À¡Êı¾İÖ¸Õë,3»·¿ØÖÆÆ÷ºÍµç»úµÄ²Î¿¼ÊäÈë*/
-// ºóĞøÔö¼ÓÇ°À¡Êı¾İÖ¸Õë
+/* ç”µæœºæ§åˆ¶å™¨,åŒ…æ‹¬å…¶ä»–æ¥æºçš„åé¦ˆæ•°æ®æŒ‡é’ˆ,3ç¯æ§åˆ¶å™¨å’Œç”µæœºçš„å‚è€ƒè¾“å…¥*/
+// åç»­å¢åŠ å‰é¦ˆæ•°æ®æŒ‡é’ˆ
 typedef struct
 {
-    float *other_angle_feedback_ptr; // ÆäËû·´À¡À´Ô´µÄ·´À¡Êı¾İÖ¸Õë
+    float *other_angle_feedback_ptr; // å…¶ä»–åé¦ˆæ¥æºçš„åé¦ˆæ•°æ®æŒ‡é’ˆ
     float *other_speed_feedback_ptr;
     float *speed_feedforward_ptr;
     float *current_feedforward_ptr;
@@ -112,10 +112,10 @@ typedef struct
     PIDInstance speed_PID;
     PIDInstance angle_PID;
 
-    float pid_ref; // ½«»á×÷ÎªÃ¿¸ö»·µÄÊäÈëºÍÊä³öË³´ÎÍ¨¹ı´®¼¶±Õ»·
+    float pid_ref; // å°†ä¼šä½œä¸ºæ¯ä¸ªç¯çš„è¾“å…¥å’Œè¾“å‡ºé¡ºæ¬¡é€šè¿‡ä¸²çº§é—­ç¯
 } Motor_Controller_s;
 
-/* µç»úÀàĞÍÃ¶¾Ù */
+/* ç”µæœºç±»å‹æšä¸¾ */
 typedef enum
 {
     MOTOR_TYPE_NONE = 0,
@@ -129,24 +129,24 @@ typedef enum
 } Motor_Type_e;
 
 /**
- * @brief µç»ú¿ØÖÆÆ÷³õÊ¼»¯½á¹¹Ìå,°üÀ¨Èı»·PIDµÄÅäÖÃÒÔ¼°Á½¸ö·´À¡Êı¾İÀ´Ô´Ö¸Õë
- *        Èç¹û²»ĞèÒªÄ³¸ö¿ØÖÆ»·,¿ÉÒÔ²»ÉèÖÃ¶ÔÓ¦µÄpid config
- *        ĞèÒªÆäËûÊı¾İÀ´Ô´½øĞĞ·´À¡±Õ»·,²»½öÒªÉèÖÃÕâÀïµÄÖ¸Õë»¹ĞèÒªÔÚMotor_Control_Setting_sÆôÓÃÆäËûÊı¾İÀ´Ô´±êÖ¾
+ * @brief ç”µæœºæ§åˆ¶å™¨åˆå§‹åŒ–ç»“æ„ä½“,åŒ…æ‹¬ä¸‰ç¯PIDçš„é…ç½®ä»¥åŠä¸¤ä¸ªåé¦ˆæ•°æ®æ¥æºæŒ‡é’ˆ
+ *        å¦‚æœä¸éœ€è¦æŸä¸ªæ§åˆ¶ç¯,å¯ä»¥ä¸è®¾ç½®å¯¹åº”çš„pid config
+ *        éœ€è¦å…¶ä»–æ•°æ®æ¥æºè¿›è¡Œåé¦ˆé—­ç¯,ä¸ä»…è¦è®¾ç½®è¿™é‡Œçš„æŒ‡é’ˆè¿˜éœ€è¦åœ¨Motor_Control_Setting_så¯ç”¨å…¶ä»–æ•°æ®æ¥æºæ ‡å¿—
  */
 typedef struct
 {
-    float *other_angle_feedback_ptr; // ½Ç¶È·´À¡Êı¾İÖ¸Õë,×¢Òâµç»úÊ¹ÓÃtotal_angle
-    float *other_speed_feedback_ptr; // ËÙ¶È·´À¡Êı¾İÖ¸Õë,µ¥Î»Îªangle per sec
+    float *other_angle_feedback_ptr; // è§’åº¦åé¦ˆæ•°æ®æŒ‡é’ˆ,æ³¨æ„ç”µæœºä½¿ç”¨total_angle
+    float *other_speed_feedback_ptr; // é€Ÿåº¦åé¦ˆæ•°æ®æŒ‡é’ˆ,å•ä½ä¸ºangle per sec
 
-    float *speed_feedforward_ptr;   // ËÙ¶ÈÇ°À¡Êı¾İÖ¸Õë
-    float *current_feedforward_ptr; // µçÁ÷Ç°À¡Êı¾İÖ¸Õë
+    float *speed_feedforward_ptr;   // é€Ÿåº¦å‰é¦ˆæ•°æ®æŒ‡é’ˆ
+    float *current_feedforward_ptr; // ç”µæµå‰é¦ˆæ•°æ®æŒ‡é’ˆ
 
     PID_Init_Config_s current_PID;
     PID_Init_Config_s speed_PID;
     PID_Init_Config_s angle_PID;
 } Motor_Controller_Init_s;
 
-/* ÓÃÓÚ³õÊ¼»¯CANµç»úµÄ½á¹¹Ìå,¸÷Ààµç»úÍ¨ÓÃ */
+/* ç”¨äºåˆå§‹åŒ–CANç”µæœºçš„ç»“æ„ä½“,å„ç±»ç”µæœºé€šç”¨ */
 typedef struct
 {
     Motor_Controller_Init_s controller_param_init_config;
