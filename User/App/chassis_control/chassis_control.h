@@ -51,6 +51,7 @@ typedef struct
 #pragma pack()
 
 
+float arm_sqrt_32(float in);
 /**
  * @brief 计算腿部关节的相对角度
  * 
@@ -63,6 +64,11 @@ void CalRealtiveAngle(void);
  */
 void SolveFiveRod(void);
 
+/**
+ * @brief 计算由LQR得出的控制输出矩阵
+ * 
+ */
+void CalLQR(void);
 /**
  * @brief 计算驱动轮力矩，lqr基础驱动轮叠加yaw转向补偿，在倒地模式下直接用vx
  * 

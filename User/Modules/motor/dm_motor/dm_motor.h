@@ -6,7 +6,7 @@
 #include "motor_def.h"
 #include "daemon.h"
 
-#define DM_MOTOR_CNT 1
+#define DM_MOTOR_CNT 4
 
 #define DM_P_MIN  (-3.1415926f)
 #define DM_P_MAX  3.1415926f

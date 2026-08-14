@@ -37,6 +37,14 @@
 #define GYRO2GIMBAL_DIR_PITCH 1 // 陀螺仪数据相较于云台的pitch的方向,1为相同,-1为相反
 #define GYRO2GIMBAL_DIR_ROLL 1  // 陀螺仪数据相较于云台的roll的方向,1为相同,-1为相反
 
+#define X_MAX 4.476769531f//小轮子
+#define JOINT_LF_INIT_ANGLE 0
+#define JOINT_RF_INIT_ANGLE 0
+#define JOINT_LB_INIT_ANGLE 0
+#define JOINT_RB_INIT_ANGLE 0
+#define L1 0        //虚拟转轴
+#define L2 0        //大腿
+#define L3 0        //小腿
 // 检查是否出现主控板定义冲突,只允许一个开发板定义存在,否则编译会自动报错
 //#if (defined(ONE_BOARD) && defined(CHASSIS_BOARD)) || \
 //    (defined(ONE_BOARD) && defined(GIMBAL_BOARD)) ||  \

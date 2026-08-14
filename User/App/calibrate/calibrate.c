@@ -11,10 +11,10 @@
 #include "BMI088driver.h"
 
 
-static Subscriber_t *gimbal_cali_sub;	// ÔÆÌ¨·´À¡ĞÅÏ¢¶©ÔÄÕß
-Gimbal_Upload_Data_s gimbal_cali_data; 	// ´ÓÔÆÌ¨»ñÈ¡µÄ·´À¡ĞÅÏ¢
+static Subscriber_t *gimbal_cali_sub;	// äº‘å°åé¦ˆä¿¡æ¯è®¢é˜…è€…
+Gimbal_Upload_Data_s gimbal_cali_data; 	// ä»äº‘å°è·å–çš„åé¦ˆä¿¡æ¯
 static BuzzzerInstance *cali_buzzer;
-cali_data_t cali_data_save;	//ÔÆÌ¨Ğ£×¼Êı¾İ
+cali_data_t cali_data_save;	//äº‘å°æ ¡å‡†æ•°æ®
 cail_mods state = CAIL_OFF;
 static uint8_t is_init;
 
@@ -25,7 +25,7 @@ cali_data_t *CalibrateInit(void)
 	gimbal_cali_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
 	memset(&cali_data_save,0,sizeof(cali_data_t));
 	is_init = 1;
-	//×¢²á·äÃùÆ÷
+	//æ³¨å†Œèœ‚é¸£å™¨
 	Buzzer_config_s buzzer_config = {
 	.alarm_level = ALARM_LEVEL_MEDIUM,
 	.loudness = 0.01,
@@ -34,9 +34,9 @@ cali_data_t *CalibrateInit(void)
 	cali_buzzer=BuzzerRegister(&buzzer_config);
 	AlarmSetStatus(cali_buzzer,ALARM_OFF);
 	
-	//¶ÁÈ¡flash
+	//è¯»å–flash
 	flash_read(CALIBRATE_DATA_ADDR,(uint32_t *)&cali_data_save,sizeof(cali_data_t)/4);
-	if(cali_data_save.cali_status != 1)//ÈôÎŞĞ£×¼Êı¾İÔòÏÈ¸³Öµ±¸ÓÃÊı¾İ,±¸ÓÃÊı¾İÔÚ [robo_def.h]
+	if(cali_data_save.cali_status != 1)//è‹¥æ— æ ¡å‡†æ•°æ®åˆ™å…ˆèµ‹å€¼å¤‡ç”¨æ•°æ®,å¤‡ç”¨æ•°æ®åœ¨ [robo_def.h]
 	{
 		cali_data_save.max_pitch = PITCH_MAX_ANGLE;
 		cali_data_save.min_pitch = PITCH_MIN_ANGLE;
@@ -53,26 +53,26 @@ cali_data_t *CalibrateInit(void)
         BMI088.AccelScale = 9.81f / cali_data_save.g_norm;
         BMI088.TempWhenCali = cali_data_save.temp_when_cail;
 		
-		return &cali_data_save;//ÓĞÊı¾İÔò·µ»ØÊı¾İ
+		return &cali_data_save;//æœ‰æ•°æ®åˆ™è¿”å›æ•°æ®
 	}
 }
 
 cali_data_t *GetCalibrateData(void)
 {
-	if(is_init != 1)//ÈôÎŞĞ£×¼Êı¾İÔòÏÈĞ£×¼
+	if(is_init != 1)//è‹¥æ— æ ¡å‡†æ•°æ®åˆ™å…ˆæ ¡å‡†
 	{
 		CalibrateInit();
 		return &cali_data_save;
 	}
 	else
-		return &cali_data_save;//ÓĞÊı¾İÔò·µ»ØÊı¾İ
+		return &cali_data_save;//æœ‰æ•°æ®åˆ™è¿”å›æ•°æ®
 }
 
 static void CailbrateOffControl(RC_ctrl_t *cail_rc_data)
 {
 	static uint32_t cali_cmd_time;
 	static float calibrating_time;
-	if(cail_rc_data[TEMP].rc.rocker_l_ > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_l1 < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r_ < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r1 < -RC_CALI_VALUE_HOLE)//ÏÂÄÚ°Ë¿ªÆôĞ£×¼
+	if(cail_rc_data[TEMP].rc.rocker_l_ > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_l1 < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r_ < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r1 < -RC_CALI_VALUE_HOLE)//ä¸‹å†…å…«å¼€å¯æ ¡å‡†
 	{
 		if(!cali_cmd_time)
 			DWT_GetDeltaT(&cali_cmd_time);
@@ -91,52 +91,52 @@ static void CailbrateOffControl(RC_ctrl_t *cail_rc_data)
 
 static void CalibrateReadyControl(RC_ctrl_t *cail_rc_data)
 {
-	static uint32_t cali_cmd_time;	//Ğ£×¼Ö¸ÁîÏÂ´ïÊ±¼ä¿Ì
-	static float calibrating_time;	//Ğ£×¼Ö¸ÁîÏÂ´ïºó³ÖĞøµÄÊ±¼ä
+	static uint32_t cali_cmd_time;	//æ ¡å‡†æŒ‡ä»¤ä¸‹è¾¾æ—¶é—´åˆ»
+	static float calibrating_time;	//æ ¡å‡†æŒ‡ä»¤ä¸‹è¾¾åæŒç»­çš„æ—¶é—´
 	
-	static uint32_t run_cmd_time;		//Ğ£×¼½øÈë×¼±¸Ä£Ê½µÄÊ±¼ä´Á
-	static float run_time = 0;		//Õâ¸öº¯ÊıÔËĞĞµÄÊ±¼ä
-	static float cnt = 0;			//Ñ­»·¿ØÖÆ·äÃùÆ÷ÓÃ
+	static uint32_t run_cmd_time;		//æ ¡å‡†è¿›å…¥å‡†å¤‡æ¨¡å¼çš„æ—¶é—´æˆ³
+	static float run_time = 0;		//è¿™ä¸ªå‡½æ•°è¿è¡Œçš„æ—¶é—´
+	static float cnt = 0;			//å¾ªç¯æ§åˆ¶èœ‚é¸£å™¨ç”¨
 	
 	if(!run_time)
 		DWT_GetDeltaT(&run_cmd_time);
 	
-	//ÉÏÍâ°ËĞ£×¼ÔÆÌ¨
-	if(cail_rc_data[TEMP].rc.rocker_l_ < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_l1 > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r_ > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r1 > RC_CALI_VALUE_HOLE)//ÉÏÍâ°ËĞ£×¼ÔÆÌ¨
+	//ä¸Šå¤–å…«æ ¡å‡†äº‘å°
+	if(cail_rc_data[TEMP].rc.rocker_l_ < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_l1 > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r_ > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r1 > RC_CALI_VALUE_HOLE)//ä¸Šå¤–å…«æ ¡å‡†äº‘å°
 	{
 		if(!cali_cmd_time)
 			DWT_GetDeltaT(&cali_cmd_time);
 		calibrating_time += DWT_GetDeltaT(&cali_cmd_time);
-		if(calibrating_time > 2)//³ÖĞøÊ±¼ä´óÓÚ2s
+		if(calibrating_time > 2)//æŒç»­æ—¶é—´å¤§äº2s
 		{
 			state = CAIL_GIMBAL;
 			run_time = 0;
 			cnt = 0;
 		}
 	}
-	//ÏÂÍâ°ËĞ£×¼ÍÓÂİÒÇ
-	else if(cail_rc_data[TEMP].rc.rocker_l_ < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_l1 < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r_ > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r1 < -RC_CALI_VALUE_HOLE)//ÏÂÍâ°ËĞ£×¼IMU
+	//ä¸‹å¤–å…«æ ¡å‡†é™€èºä»ª
+	else if(cail_rc_data[TEMP].rc.rocker_l_ < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_l1 < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r_ > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r1 < -RC_CALI_VALUE_HOLE)//ä¸‹å¤–å…«æ ¡å‡†IMU
 	{
 		if(!cali_cmd_time)
 			DWT_GetDeltaT(&cali_cmd_time);
 		calibrating_time += DWT_GetDeltaT(&cali_cmd_time);
-		if(calibrating_time > 2)//³ÖĞøÊ±¼ä´óÓÚ2s
+		if(calibrating_time > 2)//æŒç»­æ—¶é—´å¤§äº2s
 		{
 			state = CAIL_IMU;
-			AlarmSetOctave(cali_buzzer,OCTAVE_2);		//Ğ£×¼ÍÓÂİÒÇÌáÇ°´ò¿ª·äÃùÆ÷
-			AlarmSetStatus(cali_buzzer,ALARM_ON);		//ÒòÎª¹Ø±ÕÈÎÎñµ÷¶È½ø²»È¥buzzer_task
+			AlarmSetOctave(cali_buzzer,OCTAVE_2);		//æ ¡å‡†é™€èºä»ªæå‰æ‰“å¼€èœ‚é¸£å™¨
+			AlarmSetStatus(cali_buzzer,ALARM_ON);		//å› ä¸ºå…³é—­ä»»åŠ¡è°ƒåº¦è¿›ä¸å»buzzer_task
 			run_time = 0;
 			cnt = 0;
 		}
 	}
-	//Î´±£³Ö2sÖØĞÂ¼ÆÊ±
+	//æœªä¿æŒ2sé‡æ–°è®¡æ—¶
 	else
 	{
 		cali_cmd_time = 0;
 		calibrating_time = 0;
 	}
 	
-	//·äÃùÆ÷¼ä¸ô0.5s±¨¾¯
+	//èœ‚é¸£å™¨é—´éš”0.5sæŠ¥è­¦
 	run_time += DWT_GetDeltaT(&run_cmd_time);
 	if(run_time < cnt + 0.3f)
 	{
@@ -156,30 +156,30 @@ static void CalibrateReadyControl(RC_ctrl_t *cail_rc_data)
 static void GimbalCalibrateControl(void)
 {
 	static float max_pitch_temp = 0,min_pitch_temp = 0;
-	static float cali_time = 0;//Ğ£×¼³ÖĞøÊ±¼ä
-	static uint32_t cali_start_time;//Ğ£×¼¿ªÊ¼Ê±¼ä´Á
+	static float cali_time = 0;//æ ¡å‡†æŒç»­æ—¶é—´
+	static uint32_t cali_start_time;//æ ¡å‡†å¼€å§‹æ—¶é—´æˆ³
 	
 	SubGetMessage(gimbal_cali_sub,&gimbal_cali_data);
 	if(cali_time == 0)
 	{
 		DWT_GetDeltaT(&cali_start_time);
-		//Ğ£×¼ÆÚ¼ä·äÃùÆ÷³ÖĞø±¨¾¯
+		//æ ¡å‡†æœŸé—´èœ‚é¸£å™¨æŒç»­æŠ¥è­¦
 		AlarmSetOctave(cali_buzzer,OCTAVE_1);
 		AlarmSetStatus(cali_buzzer,ALARM_ON);
 	}
-	if(!max_pitch_temp && !min_pitch_temp)	//¸³³õÊ¼Öµ
+	if(!max_pitch_temp && !min_pitch_temp)	//èµ‹åˆå§‹å€¼
 	{
 		max_pitch_temp = gimbal_cali_data.pitch_ecd_angle;
 		min_pitch_temp = gimbal_cali_data.pitch_ecd_angle;
 	}
-	if(cali_time < 10)//Ğ£×¼10s
+	if(cali_time < 10)//æ ¡å‡†10s
 	{
 		cali_time += DWT_GetDeltaT(&cali_start_time);
-		if(max_pitch_temp < gimbal_cali_data.pitch_ecd_angle)	//¼ÇÂ¼×î´ópitch½Ç¶È
+		if(max_pitch_temp < gimbal_cali_data.pitch_ecd_angle)	//è®°å½•æœ€å¤§pitchè§’åº¦
 		{
 			max_pitch_temp = gimbal_cali_data.pitch_ecd_angle;
 		}
-		if(min_pitch_temp > gimbal_cali_data.pitch_ecd_angle)	//¼ÇÂ¼×îĞ¡pitch½Ç¶È
+		if(min_pitch_temp > gimbal_cali_data.pitch_ecd_angle)	//è®°å½•æœ€å°pitchè§’åº¦
 		{
 			min_pitch_temp = gimbal_cali_data.pitch_ecd_angle;
 		}
@@ -192,10 +192,10 @@ static void GimbalCalibrateControl(void)
 		cali_data_save.zero_yaw = gimbal_cali_data.yaw_motor_single_round_angle;
 		cali_data_save.cali_status = 1;
 		flash_erase_address(CALIBRATE_DATA_ADDR,1);
-		while(flash_write_single_address(CALIBRATE_DATA_ADDR, (uint32_t *)&cali_data_save, sizeof(cali_data_t)/4) != 0);//Ğ´Èëflash
+		while(flash_write_single_address(CALIBRATE_DATA_ADDR, (uint32_t *)&cali_data_save, sizeof(cali_data_t)/4) != 0);//å†™å…¥flash
 		AlarmSetStatus(cali_buzzer,ALARM_OFF);
 		state = CAIL_OFF;
-		//Ğ£×¼Íê³Éreset
+		//æ ¡å‡†å®Œæˆreset
 		__disable_irq();
 		NVIC_SystemReset();
 	}
@@ -204,7 +204,7 @@ static void GimbalCalibrateControl(void)
 
 static void IMUCalibrateControl(void)
 {
-	vTaskSuspendAll();		//¹Ø±ÕÈÎÎñµ÷¶È
+	vTaskSuspendAll();		//å…³é—­ä»»åŠ¡è°ƒåº¦
 	while (BMI088_init(1) != BMI088_NO_ERROR){};
 	
 	for(int i = 0; i < 3; i++)
@@ -212,10 +212,10 @@ static void IMUCalibrateControl(void)
 	cali_data_save.g_norm = BMI088.gNorm;
 	cali_data_save.temp_when_cail = BMI088.TempWhenCali;
 	flash_erase_address(CALIBRATE_DATA_ADDR,1);
-	while(flash_write_single_address(CALIBRATE_DATA_ADDR, (uint32_t *)&cali_data_save, sizeof(cali_data_t)/4) != 0);//Ğ´Èëflash
+	while(flash_write_single_address(CALIBRATE_DATA_ADDR, (uint32_t *)&cali_data_save, sizeof(cali_data_t)/4) != 0);//å†™å…¥flash
 	state = CAIL_OFF;
-	xTaskResumeAll();		//¿ªÆôÈÎÎñµ÷¶È
-	//Ğ£×¼ÍêÍÓÂİÒÇreset¶ÁÈ¡ĞÂ²ÎÊı
+	xTaskResumeAll();		//å¼€å¯ä»»åŠ¡è°ƒåº¦
+	//æ ¡å‡†å®Œé™€èºä»ªresetè¯»å–æ–°å‚æ•°
 	__disable_irq();
 	NVIC_SystemReset();
 }
