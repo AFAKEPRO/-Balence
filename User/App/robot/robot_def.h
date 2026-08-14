@@ -45,6 +45,10 @@
 #define L1 0        //虚拟转轴
 #define L2 0        //大腿
 #define L3 0        //小腿
+//半边机体质量（9.85kg/2）
+#define HALF_BODY_M 7.555f  //8.0f
+//腿的质量 (kg) 1.027*20
+#define LEG_M 2.054f
 // 检查是否出现主控板定义冲突,只允许一个开发板定义存在,否则编译会自动报错
 //#if (defined(ONE_BOARD) && defined(CHASSIS_BOARD)) || \
 //    (defined(ONE_BOARD) && defined(GIMBAL_BOARD)) ||  \

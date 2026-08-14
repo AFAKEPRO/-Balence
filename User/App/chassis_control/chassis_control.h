@@ -6,24 +6,6 @@
 #pragma pack(1)
 
 /**
- * @brief 五连杆解算数据包
- * 
- */
-typedef struct
-{
-
-}Five_Rod_Solve_Data_t;
-
-/**
- * @brief VMC解算数据包
- * 
- */
-typedef enum
-{
-
-}VMC_Solve_Data_t;
-
-/**
  * @brief 一侧腿部机构的数据 0表示左 1表示右
  * 
  */
@@ -37,16 +19,6 @@ typedef struct
     float chassis_pitch_speed;
     
 }chassis_control_s;
-
-/**
- * @brief 一侧驱动轮的数据 0表示左 1表示右
- * 
- */
-typedef struct 
-{
-    /* data */
-}chassis_wheel_control_s;
-
 
 #pragma pack()
 
@@ -69,6 +41,15 @@ void SolveFiveRod(void);
  * 
  */
 void CalLQR(void);
+
+/**
+ * @brief 一侧腿的虚拟腿力的重力补偿计算
+ * @param 一侧腿的虚拟腿长
+ * @return 一侧腿的重力补偿
+ * 
+ */
+static float CalGravityFF(float leg_len)
+
 /**
  * @brief 计算驱动轮力矩，lqr基础驱动轮叠加yaw转向补偿，在倒地模式下直接用vx
  * 
@@ -95,6 +76,7 @@ void SolveVMC(void);
 
 /**
  * @brief 关节力矩到虚拟腿力和虚拟合力矩的反向映射
+ * @todo  确定电机安装方向，可能需要改变某些值的符号
  * 
  */
 void SolveRealWrench(void);
