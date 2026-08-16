@@ -13,6 +13,7 @@ typedef struct
 {
     float leg_pitch;
     float leg_pitch_speed;
+    float x_set;
     float x;
     float v_fusion;
     float chassis_pitch;
@@ -46,9 +47,10 @@ void CalLQR(void);
  * @brief 一侧腿的虚拟腿力的重力补偿计算
  * @param 一侧腿的虚拟腿长
  * @return 一侧腿的重力补偿
+ * @todo   检查数组可能越界的风险
  * 
  */
-static float CalGravityFF(float leg_len)
+static float CalGravityFF(float leg_len);
 
 /**
  * @brief 计算驱动轮力矩，lqr基础驱动轮叠加yaw转向补偿，在倒地模式下直接用vx
@@ -70,6 +72,7 @@ void CalVirtualTorque(void);
 
 /**
  * @brief VMC解算，计算出关节电机力矩
+ * @todo 考虑是否加入限幅与奇异保护
  * 
  */
 void SolveVMC(void);
@@ -80,5 +83,11 @@ void SolveVMC(void);
  * 
  */
 void SolveRealWrench(void);
+
+/**
+ * @brief 底盘初始化任务
+ * 
+ */
+void chassis_init(void);
 
 #endif
