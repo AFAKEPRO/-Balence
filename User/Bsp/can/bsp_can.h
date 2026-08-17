@@ -3,61 +3,61 @@
 
 #include "can.h"
 
-// ×î¶àÄÜ¹»Ö§³ÖµÄCANÉè±¸Êı
-#define CAN_MX_REGISTER_CNT 16     // Õâ¸öÊıÁ¿È¡¾öÓÚCAN×ÜÏßµÄ¸ºÔØ
-#define MX_CAN_FILTER_CNT (2 * 14) // ×î¶à¿ÉÒÔÊ¹ÓÃµÄCAN¹ıÂËÆ÷ÊıÁ¿,Ä¿Ç°Ô¶²»»áÓÃµ½ÕâÃ´¶à
-#define DEVICE_CAN_CNT 2           // ¸ù¾İ°å×ÓÉè¶¨,F407IGÓĞCAN1,CAN2,Òò´ËÎª2;F334Ö»ÓĞÒ»¸ö,ÔòÉèÎª1
-// Èç¹ûÖ»ÓĞ1¸öCAN,»¹ĞèÒª°Ñbsp_can.cÖĞËùÓĞµÄhcan2±äÁ¿¸ÄÎªhcan1(±ğµ£ĞÄ,Ö÷ÒªÊÇ×ÜÏßºÍFIFOµÄ¸ºÔØ¾ùºâ,²»Ó°Ïì¹¦ÄÜ)
+// æœ€å¤šèƒ½å¤Ÿæ”¯æŒçš„CANè®¾å¤‡æ•°
+#define CAN_MX_REGISTER_CNT 16     // è¿™ä¸ªæ•°é‡å–å†³äºCANæ€»çº¿çš„è´Ÿè½½
+#define MX_CAN_FILTER_CNT (2 * 14) // æœ€å¤šå¯ä»¥ä½¿ç”¨çš„CANè¿‡æ»¤å™¨æ•°é‡,ç›®å‰è¿œä¸ä¼šç”¨åˆ°è¿™ä¹ˆå¤š
+#define DEVICE_CAN_CNT 2           // æ ¹æ®æ¿å­è®¾å®š,F407IGæœ‰CAN1,CAN2,å› æ­¤ä¸º2;F334åªæœ‰ä¸€ä¸ª,åˆ™è®¾ä¸º1
+// å¦‚æœåªæœ‰1ä¸ªCAN,è¿˜éœ€è¦æŠŠbsp_can.cä¸­æ‰€æœ‰çš„hcan2å˜é‡æ”¹ä¸ºhcan1(åˆ«æ‹…å¿ƒ,ä¸»è¦æ˜¯æ€»çº¿å’ŒFIFOçš„è´Ÿè½½å‡è¡¡,ä¸å½±å“åŠŸèƒ½)
 
 #pragma pack(1)
 typedef struct _
 {
-    CAN_HandleTypeDef *can_handle; // can¾ä±ú
-    CAN_TxHeaderTypeDef txconf;    // CAN±¨ÎÄ·¢ËÍÅäÖÃ
-    uint32_t tx_id;                // ·¢ËÍid
-    uint32_t tx_mailbox;           // CANÏûÏ¢ÌîÈëµÄÓÊÏäºÅ
-    uint8_t tx_buff[8];            // ·¢ËÍ»º´æ,·¢ËÍÏûÏ¢³¤¶È¿ÉÒÔÍ¨¹ıCANSetDLC()Éè¶¨,×î´óÎª8
-    uint8_t rx_buff[8];            // ½ÓÊÕ»º´æ,×î´óÏûÏ¢³¤¶ÈÎª8
-    uint32_t rx_id;                // ½ÓÊÕid
-    uint8_t rx_len;                // ½ÓÊÕ³¤¶È,¿ÉÄÜÎª0-8
-    // ½ÓÊÕµÄ»Øµ÷º¯Êı,ÓÃÓÚ½âÎö½ÓÊÕµ½µÄÊı¾İ
-    void (*can_module_callback)(struct _ *); // ²ÎÊıÎªCANInstanceµÄ»Øµ÷º¯Êı
-    void *id;                                // Ê¹ÓÃcanÍâÉèµÄÄ£¿éÖ¸Õë(¼´idÖ¸ÏòµÄÄ£¿éÓµÓĞ´ËcanÊµÀı,ÊÇ¸¸×Ó¹ØÏµ)
+    CAN_HandleTypeDef *can_handle; // canå¥æŸ„
+    CAN_TxHeaderTypeDef txconf;    // CANæŠ¥æ–‡å‘é€é…ç½®
+    uint32_t tx_id;                // å‘é€id
+    uint32_t tx_mailbox;           // CANæ¶ˆæ¯å¡«å…¥çš„é‚®ç®±å·
+    uint8_t tx_buff[8];            // å‘é€ç¼“å­˜,å‘é€æ¶ˆæ¯é•¿åº¦å¯ä»¥é€šè¿‡CANSetDLC()è®¾å®š,æœ€å¤§ä¸º8
+    uint8_t rx_buff[8];            // æ¥æ”¶ç¼“å­˜,æœ€å¤§æ¶ˆæ¯é•¿åº¦ä¸º8
+    uint32_t rx_id;                // æ¥æ”¶id
+    uint8_t rx_len;                // æ¥æ”¶é•¿åº¦,å¯èƒ½ä¸º0-8
+    // æ¥æ”¶çš„å›è°ƒå‡½æ•°,ç”¨äºè§£ææ¥æ”¶åˆ°çš„æ•°æ®
+    void (*can_module_callback)(struct _ *); // å‚æ•°ä¸ºCANInstanceçš„å›è°ƒå‡½æ•°
+    void *id;                                // ä½¿ç”¨canå¤–è®¾çš„æ¨¡å—æŒ‡é’ˆ(å³idæŒ‡å‘çš„æ¨¡å—æ‹¥æœ‰æ­¤canå®ä¾‹,æ˜¯çˆ¶å­å…³ç³»)
 } CANInstance;
 #pragma pack()
 
 typedef struct
 {
-    CAN_HandleTypeDef *can_handle;              // can¾ä±ú
-    uint32_t tx_id;                             // ·¢ËÍid
-    uint32_t rx_id;                             // ½ÓÊÕid
-    void (*can_module_callback)(CANInstance *); // ´¦Àí½ÓÊÕÊı¾İµÄ»Øµ÷º¯Êı
-    void *id;                                   // ÓµÓĞcanÊµÀıµÄÄ£¿éµØÖ·,ÓÃÓÚÇø·Ö²»Í¬µÄÄ£¿é(Èç¹ûÓĞĞèÒªµÄ»°),Èç¹û²»ĞèÒª¿ÉÒÔ²»´«Èë
+    CAN_HandleTypeDef *can_handle;              // canå¥æŸ„
+    uint32_t tx_id;                             // å‘é€id
+    uint32_t rx_id;                             // æ¥æ”¶id
+    void (*can_module_callback)(CANInstance *); // å¤„ç†æ¥æ”¶æ•°æ®çš„å›è°ƒå‡½æ•°
+    void *id;                                   // æ‹¥æœ‰canå®ä¾‹çš„æ¨¡å—åœ°å€,ç”¨äºåŒºåˆ†ä¸åŒçš„æ¨¡å—(å¦‚æœæœ‰éœ€è¦çš„è¯),å¦‚æœä¸éœ€è¦å¯ä»¥ä¸ä¼ å…¥
 } CAN_Init_Config_s;
 
 /**
  * @brief Register a module to CAN service,remember to call this before using a CAN device
- *        ×¢²á(³õÊ¼»¯)Ò»¸öcanÊµÀı,ĞèÒª´«Èë³õÊ¼»¯ÅäÖÃµÄÖ¸Õë.
+ *        æ³¨å†Œ(åˆå§‹åŒ–)ä¸€ä¸ªcanå®ä¾‹,éœ€è¦ä¼ å…¥åˆå§‹åŒ–é…ç½®çš„æŒ‡é’ˆ.
  * @param config init config
  * @return CANInstance* can instance owned by module
  */
 CANInstance *CANRegister(CAN_Init_Config_s *config);
 
 /**
- * @brief ĞŞ¸ÄCAN·¢ËÍ±¨ÎÄµÄÊı¾İÖ¡³¤¶È;×¢Òâ×î´ó³¤¶ÈÎª8,ÔÚÃ»ÓĞ½øĞĞĞŞ¸ÄµÄÊ±ºò,Ä¬ÈÏ³¤¶ÈÎª8
+ * @brief ä¿®æ”¹CANå‘é€æŠ¥æ–‡çš„æ•°æ®å¸§é•¿åº¦;æ³¨æ„æœ€å¤§é•¿åº¦ä¸º8,åœ¨æ²¡æœ‰è¿›è¡Œä¿®æ”¹çš„æ—¶å€™,é»˜è®¤é•¿åº¦ä¸º8
  *
- * @param _instance ÒªĞŞ¸Ä³¤¶ÈµÄcanÊµÀı
- * @param length    Éè¶¨³¤¶È
+ * @param _instance è¦ä¿®æ”¹é•¿åº¦çš„canå®ä¾‹
+ * @param length    è®¾å®šé•¿åº¦
  */
 void CANSetDLC(CANInstance *_instance, uint8_t length);
 
 /**
- * @brief transmit mesg through CAN device,Í¨¹ıcanÊµÀı·¢ËÍÏûÏ¢
- *        ·¢ËÍÇ°ĞèÒªÏòCANÊµÀıµÄtx_buffĞ´Èë·¢ËÍÊı¾İ
+ * @brief transmit mesg through CAN device,é€šè¿‡canå®ä¾‹å‘é€æ¶ˆæ¯
+ *        å‘é€å‰éœ€è¦å‘CANå®ä¾‹çš„tx_buffå†™å…¥å‘é€æ•°æ®
  * 
- * @attention ³¬Ê±Ê±¼ä²»Ó¦¸Ã³¬¹ıµ÷ÓÃ´Ëº¯ÊıµÄÈÎÎñµÄÖÜÆÚ,·ñÔò»áµ¼ÖÂÈÎÎñ×èÈû
+ * @attention è¶…æ—¶æ—¶é—´ä¸åº”è¯¥è¶…è¿‡è°ƒç”¨æ­¤å‡½æ•°çš„ä»»åŠ¡çš„å‘¨æœŸ,å¦åˆ™ä¼šå¯¼è‡´ä»»åŠ¡é˜»å¡
  * 
- * @param timeout ³¬Ê±Ê±¼ä,µ¥Î»Îªms;ºóĞø¸ÄÎªus,»ñµÃ¸ü¾«È·µÄ¿ØÖÆ
+ * @param timeout è¶…æ—¶æ—¶é—´,å•ä½ä¸ºms;åç»­æ”¹ä¸ºus,è·å¾—æ›´ç²¾ç¡®çš„æ§åˆ¶
  * @param _instance* can instance owned by module
  */
 uint8_t CANTransmit(CANInstance *_instance,float timeout);

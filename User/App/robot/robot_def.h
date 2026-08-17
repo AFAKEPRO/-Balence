@@ -30,25 +30,30 @@
 #define TRACK_WIDTH 300             // 横向轮距(左右平移方向)
 #define CENTER_GIMBAL_OFFSET_X 0    // 云台旋转中心距底盘几何中心的距离,前后方向,云台位于正中心时默认设为0
 #define CENTER_GIMBAL_OFFSET_Y 0    // 云台旋转中心距底盘几何中心的距离,左右方向,云台位于正中心时默认设为0
-#define RADIUS_WHEEL 76             // 轮子半径
-#define REDUCTION_RATIO_WHEEL 19.0f // 电机减速比,因为编码器量测的是转子的速度而不是输出轴的速度故需进行转换
+
 
 #define GYRO2GIMBAL_DIR_YAW 1   // 陀螺仪数据相较于云台的yaw的方向,1为相同,-1为相反
 #define GYRO2GIMBAL_DIR_PITCH 1 // 陀螺仪数据相较于云台的pitch的方向,1为相同,-1为相反
 #define GYRO2GIMBAL_DIR_ROLL 1  // 陀螺仪数据相较于云台的roll的方向,1为相同,-1为相反
 
 #define X_MAX 4.476769531f//小轮子
-#define JOINT_LF_INIT_ANGLE 0
-#define JOINT_RF_INIT_ANGLE 0
-#define JOINT_LB_INIT_ANGLE 0
-#define JOINT_RB_INIT_ANGLE 0
-#define L1 0        //虚拟转轴
-#define L2 0        //大腿
-#define L3 0        //小腿
+#define JOINT_LF_INIT_ANGLE 0.1f
+#define JOINT_RF_INIT_ANGLE 0.1f
+#define JOINT_LB_INIT_ANGLE 0.1f
+#define JOINT_RB_INIT_ANGLE 0.1f
+#define L1 0.1f        //虚拟转轴
+#define L2 0.1f        //大腿
+#define L3 0.1f        //小腿
 //半边机体质量（9.85kg/2）
 #define HALF_BODY_M 7.555f  //8.0f
 //腿的质量 (kg) 1.027*20
 #define LEG_M 2.054f
+#define LEG_LEN_MIN 0.001f
+#define LEG_LEN_MAX 0.017f
+#define REDUCTION_RATIO_WHEEL 19.0f // 电机减速比,因为编码器量测的是转子的速度而不是输出轴的速度故需进行转换
+#define RADIUS_WHEEL 0.076f             // 轮子半径
+#define INIT_LEG_LEN 0.05f
+
 // 检查是否出现主控板定义冲突,只允许一个开发板定义存在,否则编译会自动报错
 //#if (defined(ONE_BOARD) && defined(CHASSIS_BOARD)) || \
 //    (defined(ONE_BOARD) && defined(GIMBAL_BOARD)) ||  \
@@ -85,11 +90,11 @@ typedef enum
 typedef enum
 {
     CHASSIS_ZERO_FORCE = 0,    // 电流零输入
-    CHASSIS_ROTATE,            // 小陀螺模式
-	CHASSIS_ROTATE_F,
-    CHASSIS_NO_FOLLOW,         // 不跟随，允许全向平移
-    CHASSIS_FOLLOW_GIMBAL_YAW, // 跟随模式，底盘叠加角度环控制
-	MAX_SPEED
+    CHASSIS_CALI,
+    CHASSIS_INIT,
+    CHASSIS_DOWN,
+    CHASSIS_BALANCE,
+    CHASSIS_JUMP,
 } chassis_mode_e;
 
 // 云台模式设置
@@ -174,6 +179,7 @@ typedef struct
     float vy;           // 横移方向速度
     float wz;           // 旋转速度
     float offset_angle; // 底盘和归中位置的夹角
+    float leg_len_cmd;
     chassis_mode_e chassis_mode;
     int chassis_speed_buff;
     // UI部分

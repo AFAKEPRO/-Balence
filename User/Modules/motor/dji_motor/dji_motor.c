@@ -4,19 +4,19 @@
 
 #include "user_lib.h"
 
-static uint8_t idx = 0; // register idx,ÊÇ¸ÃÎÄ¼şµÄÈ«¾Öµç»úË÷Òı,ÔÚ×¢²áÊ±Ê¹ÓÃ
-/* DJIµç»úµÄÊµÀı,´Ë´¦½ö±£´æÖ¸Õë,ÄÚ´æµÄ·ÖÅä½«Í¨¹ıµç»úÊµÀı³õÊ¼»¯Ê±Í¨¹ımalloc()½øĞĞ */
-static DJIMotorInstance *dji_motor_instance[DJI_MOTOR_CNT] = {NULL}; // »áÔÚcontrolÈÎÎñÖĞ±éÀú¸ÃÖ¸ÕëÊı×é½øĞĞpid¼ÆËã
+static uint8_t idx = 0; // register idx,æ˜¯è¯¥æ–‡ä»¶çš„å…¨å±€ç”µæœºç´¢å¼•,åœ¨æ³¨å†Œæ—¶ä½¿ç”¨
+/* DJIç”µæœºçš„å®ä¾‹,æ­¤å¤„ä»…ä¿å­˜æŒ‡é’ˆ,å†…å­˜çš„åˆ†é…å°†é€šè¿‡ç”µæœºå®ä¾‹åˆå§‹åŒ–æ—¶é€šè¿‡malloc()è¿›è¡Œ */
+static DJIMotorInstance *dji_motor_instance[DJI_MOTOR_CNT] = {NULL}; // ä¼šåœ¨controlä»»åŠ¡ä¸­éå†è¯¥æŒ‡é’ˆæ•°ç»„è¿›è¡Œpidè®¡ç®—
 
 /**
- * @brief ÓÉÓÚDJIµç»ú·¢ËÍÒÔËÄ¸öÒ»×éµÄĞÎÊ½½øĞĞ,¹Ê¶ÔÆä½øĞĞÌØÊâ´¦Àí,ÓÃ6¸ö(2can*3group)can_instance×¨ÃÅ¸ºÔğ·¢ËÍ
- *        ¸Ã±äÁ¿½«ÔÚ DJIMotorControl() ÖĞÊ¹ÓÃ,·Ö×éÔÚ MotorSenderGrouping()ÖĞ½øĞĞ
+ * @brief ç”±äºDJIç”µæœºå‘é€ä»¥å››ä¸ªä¸€ç»„çš„å½¢å¼è¿›è¡Œ,æ•…å¯¹å…¶è¿›è¡Œç‰¹æ®Šå¤„ç†,ç”¨6ä¸ª(2can*3group)can_instanceä¸“é—¨è´Ÿè´£å‘é€
+ *        è¯¥å˜é‡å°†åœ¨ DJIMotorControl() ä¸­ä½¿ç”¨,åˆ†ç»„åœ¨ MotorSenderGrouping()ä¸­è¿›è¡Œ
  *
- * @note  ÒòÎªÖ»ÓÃÓÚ·¢ËÍ,ËùÒÔ²»ĞèÒªÔÚbsp_canÖĞ×¢²á
+ * @note  å› ä¸ºåªç”¨äºå‘é€,æ‰€ä»¥ä¸éœ€è¦åœ¨bsp_canä¸­æ³¨å†Œ
  *
  * C610(m2006)/C620(m3508):0x1ff,0x200;
  * GM6020:0x1ff,0x2ff
- * ·´À¡(rx_id): GM6020: 0x204+id ; C610/C620: 0x200+id
+ * åé¦ˆ(rx_id): GM6020: 0x204+id ; C610/C620: 0x200+id
  * can1: [0]:0x1FF,[1]:0x200,[2]:0x2FF
  * can2: [3]:0x1FF,[4]:0x200,[5]:0x2FF
  */
@@ -30,18 +30,18 @@ static CANInstance sender_assignment[6] = {
 };
 
 /**
- * @brief 6¸öÓÃÓÚÈ·ÈÏÊÇ·ñÓĞµç»ú×¢²áµ½sender_assignmentÖĞµÄ±êÖ¾Î»,·ÀÖ¹·¢ËÍ¿ÕÖ¡,´Ë±äÁ¿½«ÔÚDJIMotorControl()Ê¹ÓÃ
- *        flagµÄ³õÊ¼»¯ÔÚ MotorSenderGrouping()ÖĞ½øĞĞ
+ * @brief 6ä¸ªç”¨äºç¡®è®¤æ˜¯å¦æœ‰ç”µæœºæ³¨å†Œåˆ°sender_assignmentä¸­çš„æ ‡å¿—ä½,é˜²æ­¢å‘é€ç©ºå¸§,æ­¤å˜é‡å°†åœ¨DJIMotorControl()ä½¿ç”¨
+ *        flagçš„åˆå§‹åŒ–åœ¨ MotorSenderGrouping()ä¸­è¿›è¡Œ
  */
 static uint8_t sender_enable_flag[6] = {0};
 
 /**
- * @brief ¸ù¾İµçµ÷/²¦Âë¿ª¹ØÉÏµÄID,¸ù¾İËµÃ÷ÊéµÄÄ¬ÈÏid·ÖÅä·½Ê½¼ÆËã·¢ËÍIDºÍ½ÓÊÕID,
- *        ²¢¶Ôµç»ú½øĞĞ·Ö×éÒÔ±ã´¦Àí¶àµç»ú¿ØÖÆÃüÁî
+ * @brief æ ¹æ®ç”µè°ƒ/æ‹¨ç å¼€å…³ä¸Šçš„ID,æ ¹æ®è¯´æ˜ä¹¦çš„é»˜è®¤idåˆ†é…æ–¹å¼è®¡ç®—å‘é€IDå’Œæ¥æ”¶ID,
+ *        å¹¶å¯¹ç”µæœºè¿›è¡Œåˆ†ç»„ä»¥ä¾¿å¤„ç†å¤šç”µæœºæ§åˆ¶å‘½ä»¤
  */
 static void MotorSenderGrouping(DJIMotorInstance *motor, CAN_Init_Config_s *config)
 {
-    uint8_t motor_id = config->tx_id - 1; // ÏÂ±ê´ÓÁã¿ªÊ¼,ÏÈ¼õÒ»·½±ã¸³Öµ
+    uint8_t motor_id = config->tx_id - 1; // ä¸‹æ ‡ä»é›¶å¼€å§‹,å…ˆå‡ä¸€æ–¹ä¾¿èµ‹å€¼
     uint8_t motor_send_num;
     uint8_t motor_grouping;
 
@@ -49,7 +49,7 @@ static void MotorSenderGrouping(DJIMotorInstance *motor, CAN_Init_Config_s *conf
     {
     case M2006:
     case M3508:
-        if (motor_id < 4) // ¸ù¾İID·Ö×é
+        if (motor_id < 4) // æ ¹æ®IDåˆ†ç»„
         {
             motor_send_num = motor_id;
             motor_grouping = config->can_handle == &hcan1 ? 1 : 4;
@@ -60,20 +60,20 @@ static void MotorSenderGrouping(DJIMotorInstance *motor, CAN_Init_Config_s *conf
             motor_grouping = config->can_handle == &hcan1 ? 0 : 3;
         }
 
-        // ¼ÆËã½ÓÊÕid²¢ÉèÖÃ·Ö×é·¢ËÍid
-        config->rx_id = 0x200 + motor_id + 1;   // °ÑID+1,½øĞĞ·Ö×éÉèÖÃ
-        sender_enable_flag[motor_grouping] = 1; // ÉèÖÃ·¢ËÍ±êÖ¾Î»,·ÀÖ¹·¢ËÍ¿ÕÖ¡
+        // è®¡ç®—æ¥æ”¶idå¹¶è®¾ç½®åˆ†ç»„å‘é€id
+        config->rx_id = 0x200 + motor_id + 1;   // æŠŠID+1,è¿›è¡Œåˆ†ç»„è®¾ç½®
+        sender_enable_flag[motor_grouping] = 1; // è®¾ç½®å‘é€æ ‡å¿—ä½,é˜²æ­¢å‘é€ç©ºå¸§
         motor->message_num = motor_send_num;
         motor->sender_group = motor_grouping;
 
-        // ¼ì²éÊÇ·ñ·¢Éúid³åÍ»
+        // æ£€æŸ¥æ˜¯å¦å‘ç”Ÿidå†²çª
         for (size_t i = 0; i < idx; ++i)
         {
             if (dji_motor_instance[i]->motor_can_instance->can_handle == config->can_handle && dji_motor_instance[i]->motor_can_instance->rx_id == config->rx_id)
             {
                 LOGERROR("[dji_motor] ID crash. Check in debug mode, add dji_motor_instance to watch to get more information.");
                 uint16_t can_bus = config->can_handle == &hcan1 ? 1 : 2;
-                while (1) // 6020µÄid 1-4ºÍ2006/3508µÄid 5-8»á·¢Éú³åÍ»(ÈôÓĞ×¢²á,¼´1!5,2!6,3!7,4!8) (1!5!,LTC! (((²»ÊÇ)
+                while (1) // 6020çš„id 1-4å’Œ2006/3508çš„id 5-8ä¼šå‘ç”Ÿå†²çª(è‹¥æœ‰æ³¨å†Œ,å³1!5,2!6,3!7,4!8) (1!5!,LTC! (((ä¸æ˜¯)
                     LOGERROR("[dji_motor] id [%d], can_bus [%d]", config->rx_id, can_bus);
             }
         }
@@ -91,8 +91,8 @@ static void MotorSenderGrouping(DJIMotorInstance *motor, CAN_Init_Config_s *conf
             motor_grouping = config->can_handle == &hcan1 ? 2 : 5;
         }
 
-        config->rx_id = 0x204 + motor_id + 1;   // °ÑID+1,½øĞĞ·Ö×éÉèÖÃ
-        sender_enable_flag[motor_grouping] = 1; // Ö»ÒªÓĞµç»ú×¢²áµ½Õâ¸ö·Ö×é,ÖÃÎª1;ÔÚ·¢ËÍº¯ÊıÖĞ»áÍ¨¹ı´Ë±êÖ¾ÅĞ¶ÏÊÇ·ñÓĞµç»ú×¢²á
+        config->rx_id = 0x204 + motor_id + 1;   // æŠŠID+1,è¿›è¡Œåˆ†ç»„è®¾ç½®
+        sender_enable_flag[motor_grouping] = 1; // åªè¦æœ‰ç”µæœºæ³¨å†Œåˆ°è¿™ä¸ªåˆ†ç»„,ç½®ä¸º1;åœ¨å‘é€å‡½æ•°ä¸­ä¼šé€šè¿‡æ­¤æ ‡å¿—åˆ¤æ–­æ˜¯å¦æœ‰ç”µæœºæ³¨å†Œ
         motor->message_num = motor_send_num;
         motor->sender_group = motor_grouping;
 
@@ -102,7 +102,7 @@ static void MotorSenderGrouping(DJIMotorInstance *motor, CAN_Init_Config_s *conf
             {
                 LOGERROR("[dji_motor] ID crash. Check in debug mode, add dji_motor_instance to watch to get more information.");
                 uint16_t can_bus = config->can_handle == &hcan1 ? 1 : 2;
-                while (1) // 6020µÄid 1-4ºÍ2006/3508µÄid 5-8»á·¢Éú³åÍ»(ÈôÓĞ×¢²á,¼´1!5,2!6,3!7,4!8) (1!5!,LTC! (((²»ÊÇ)
+                while (1) // 6020çš„id 1-4å’Œ2006/3508çš„id 5-8ä¼šå‘ç”Ÿå†²çª(è‹¥æœ‰æ³¨å†Œ,å³1!5,2!6,3!7,4!8) (1!5!,LTC! (((ä¸æ˜¯)
                     LOGERROR("[dji_motor] id [%d], can_bus [%d]", config->rx_id, can_bus);
             }
         }
@@ -110,28 +110,28 @@ static void MotorSenderGrouping(DJIMotorInstance *motor, CAN_Init_Config_s *conf
 
     default: // other motors should not be registered here
         while (1)
-            LOGERROR("[dji_motor]You must not register other motors using the API of DJI motor."); // ÆäËûµç»ú²»Ó¦¸ÃÔÚÕâÀï×¢²á
+            LOGERROR("[dji_motor]You must not register other motors using the API of DJI motor."); // å…¶ä»–ç”µæœºä¸åº”è¯¥åœ¨è¿™é‡Œæ³¨å†Œ
     }
 }
 
 /**
- * @todo  ÊÇ·ñ¿ÉÒÔ¼ò»¯¶àÈ¦½Ç¶ÈµÄ¼ÆËã£¿
- * @brief ¸ù¾İ·µ»ØµÄcan_instance¶Ô·´À¡±¨ÎÄ½øĞĞ½âÎö
+ * @todo  æ˜¯å¦å¯ä»¥ç®€åŒ–å¤šåœˆè§’åº¦çš„è®¡ç®—ï¼Ÿ
+ * @brief æ ¹æ®è¿”å›çš„can_instanceå¯¹åé¦ˆæŠ¥æ–‡è¿›è¡Œè§£æ
  *
- * @param _instance ÊÕµ½Êı¾İµÄinstance,Í¨¹ı±éÀúÓëËùÓĞµç»ú½øĞĞ¶Ô±ÈÒÔÑ¡ÔñÕıÈ·µÄÊµÀı
+ * @param _instance æ”¶åˆ°æ•°æ®çš„instance,é€šè¿‡éå†ä¸æ‰€æœ‰ç”µæœºè¿›è¡Œå¯¹æ¯”ä»¥é€‰æ‹©æ­£ç¡®çš„å®ä¾‹
  */
 static void DecodeDJIMotor(CANInstance *_instance)
 {
-    // ÕâÀï¶Ôcan instanceµÄid½øĞĞÁËÇ¿ÖÆ×ª»»,´Ó¶ø»ñµÃµç»úµÄinstanceÊµÀıµØÖ·
-    // _instanceÖ¸ÕëÖ¸ÏòµÄidÊÇ¶ÔÓ¦µç»úinstanceµÄµØÖ·,Í¨¹ıÇ¿ÖÆ×ª»»Îªµç»úinstanceµÄÖ¸Õë,ÔÙÍ¨¹ı->ÔËËã·û·ÃÎÊµç»úµÄ³ÉÔ±motor_measure,×îºóÈ¡µØÖ·»ñµÃÖ¸Õë
+    // è¿™é‡Œå¯¹can instanceçš„idè¿›è¡Œäº†å¼ºåˆ¶è½¬æ¢,ä»è€Œè·å¾—ç”µæœºçš„instanceå®ä¾‹åœ°å€
+    // _instanceæŒ‡é’ˆæŒ‡å‘çš„idæ˜¯å¯¹åº”ç”µæœºinstanceçš„åœ°å€,é€šè¿‡å¼ºåˆ¶è½¬æ¢ä¸ºç”µæœºinstanceçš„æŒ‡é’ˆ,å†é€šè¿‡->è¿ç®—ç¬¦è®¿é—®ç”µæœºçš„æˆå‘˜motor_measure,æœ€åå–åœ°å€è·å¾—æŒ‡é’ˆ
     uint8_t *rxbuff = _instance->rx_buff;
     DJIMotorInstance *motor = (DJIMotorInstance *)_instance->id;
-    DJI_Motor_Measure_s *measure = &motor->measure; // measureÒª¶à´ÎÊ¹ÓÃ,±£´æÖ¸Õë¼õĞ¡·Ã´æ¿ªÏú
+    DJI_Motor_Measure_s *measure = &motor->measure; // measureè¦å¤šæ¬¡ä½¿ç”¨,ä¿å­˜æŒ‡é’ˆå‡å°è®¿å­˜å¼€é”€
 
 //    DaemonReload(motor->daemon);
     motor->dt = DWT_GetDeltaT(&motor->feed_cnt);
 
-    // ½âÎöÊı¾İ²¢¶ÔµçÁ÷ºÍËÙ¶È½øĞĞÂË²¨,µç»úµÄ·´À¡±¨ÎÄ¾ßÌå¸ñÊ½¼ûµç»úËµÃ÷ÊÖ²á
+    // è§£ææ•°æ®å¹¶å¯¹ç”µæµå’Œé€Ÿåº¦è¿›è¡Œæ»¤æ³¢,ç”µæœºçš„åé¦ˆæŠ¥æ–‡å…·ä½“æ ¼å¼è§ç”µæœºè¯´æ˜æ‰‹å†Œ
     measure->last_ecd = measure->ecd;
     measure->ecd = ((uint16_t)rxbuff[0]) << 8 | rxbuff[1];
     measure->angle_single_round = ECD_ANGLE_COEF_DJI * (float)measure->ecd;
@@ -141,7 +141,7 @@ static void DecodeDJIMotor(CANInstance *_instance)
                             CURRENT_SMOOTH_COEF * (float)((int16_t)(rxbuff[4] << 8 | rxbuff[5]));
     measure->temperature = rxbuff[6];
 
-    // ¶àÈ¦½Ç¶È¼ÆËã,Ç°ÌáÊÇ¼ÙÉèÁ½´Î²ÉÑù¼äµç»ú×ª¹ıµÄ½Ç¶ÈĞ¡ÓÚ180¡ã,×Ô¼º»­¸öÍ¼¾ÍÇå³ş¼ÆËã¹ı³ÌÁË
+    // å¤šåœˆè§’åº¦è®¡ç®—,å‰ææ˜¯å‡è®¾ä¸¤æ¬¡é‡‡æ ·é—´ç”µæœºè½¬è¿‡çš„è§’åº¦å°äº180Â°,è‡ªå·±ç”»ä¸ªå›¾å°±æ¸…æ¥šè®¡ç®—è¿‡ç¨‹äº†
     if (measure->ecd - measure->last_ecd > 4096)
         measure->total_round--;
     else if (measure->ecd - measure->last_ecd < -4096)
@@ -156,17 +156,17 @@ static void DecodeDJIMotor(CANInstance *_instance)
 //    LOGWARNING("[dji_motor] Motor lost, can bus [%d] , id [%d]", can_bus, motor->motor_can_instance->tx_id);
 //}
 
-// µç»ú³õÊ¼»¯,·µ»ØÒ»¸öµç»úÊµÀı
+// ç”µæœºåˆå§‹åŒ–,è¿”å›ä¸€ä¸ªç”µæœºå®ä¾‹
 DJIMotorInstance *DJIMotorInit(Motor_Init_Config_s *config)
 {
     DJIMotorInstance *instance = (DJIMotorInstance *)malloc(sizeof(DJIMotorInstance));
     memset(instance, 0, sizeof(DJIMotorInstance));
 
-    // motor basic setting µç»ú»ù±¾ÉèÖÃ
+    // motor basic setting ç”µæœºåŸºæœ¬è®¾ç½®
     instance->motor_type = config->motor_type;                         // 6020 or 2006 or 3508
-    instance->motor_settings = config->controller_setting_init_config; // Õı·´×ª,±Õ»·ÀàĞÍµÈ
+    instance->motor_settings = config->controller_setting_init_config; // æ­£åè½¬,é—­ç¯ç±»å‹ç­‰
 
-    // motor controller init µç»ú¿ØÖÆÆ÷³õÊ¼»¯
+    // motor controller init ç”µæœºæ§åˆ¶å™¨åˆå§‹åŒ–
     PIDInit(&instance->motor_controller.current_PID, &config->controller_param_init_config.current_PID);
     PIDInit(&instance->motor_controller.speed_PID, &config->controller_param_init_config.speed_PID);
     PIDInit(&instance->motor_controller.angle_PID, &config->controller_param_init_config.angle_PID);
@@ -174,21 +174,21 @@ DJIMotorInstance *DJIMotorInit(Motor_Init_Config_s *config)
     instance->motor_controller.other_speed_feedback_ptr = config->controller_param_init_config.other_speed_feedback_ptr;
     instance->motor_controller.current_feedforward_ptr = config->controller_param_init_config.current_feedforward_ptr;
     instance->motor_controller.speed_feedforward_ptr = config->controller_param_init_config.speed_feedforward_ptr;
-    // ºóĞøÔö¼Óµç»úÇ°À¡¿ØÖÆÆ÷(ËÙ¶ÈºÍµçÁ÷)
+    // åç»­å¢åŠ ç”µæœºå‰é¦ˆæ§åˆ¶å™¨(é€Ÿåº¦å’Œç”µæµ)
 
-    // µç»ú·Ö×é,ÒòÎªÖÁ¶à4¸öµç»ú¿ÉÒÔ¹²ÓÃÒ»Ö¡CAN¿ØÖÆ±¨ÎÄ
+    // ç”µæœºåˆ†ç»„,å› ä¸ºè‡³å¤š4ä¸ªç”µæœºå¯ä»¥å…±ç”¨ä¸€å¸§CANæ§åˆ¶æŠ¥æ–‡
     MotorSenderGrouping(instance, &config->can_init_config);
 
-    // ×¢²áµç»úµ½CAN×ÜÏß
+    // æ³¨å†Œç”µæœºåˆ°CANæ€»çº¿
     config->can_init_config.can_module_callback = DecodeDJIMotor; // set callback
     config->can_init_config.id = instance;                        // set id,eq to address(it is identity)
     instance->motor_can_instance = CANRegister(&config->can_init_config);
 
-    // ×¢²áÊØ»¤Ïß³Ì
+    // æ³¨å†Œå®ˆæŠ¤çº¿ç¨‹
 //    Daemon_Init_Config_s daemon_config = {
 //        .callback = DJIMotorLostCallback,
 //        .owner_id = instance,
-//        .reload_count = 2, // 20msÎ´ÊÕµ½Êı¾İÔò¶ªÊ§
+//        .reload_count = 2, // 20msæœªæ”¶åˆ°æ•°æ®åˆ™ä¸¢å¤±
 //    };
 //    instance->daemon = DaemonRegister(&daemon_config);
 
@@ -197,7 +197,7 @@ DJIMotorInstance *DJIMotorInit(Motor_Init_Config_s *config)
     return instance;
 }
 
-/* µçÁ÷Ö»ÄÜÍ¨¹ıµç»ú×Ô´ø´«¸ĞÆ÷¼à²â,ºóĞø¿¼ÂÇ¼ÓÈëÁ¦¾Ø´«¸ĞÆ÷Ó¦±äÆ¬µÈ */
+/* ç”µæµåªèƒ½é€šè¿‡ç”µæœºè‡ªå¸¦ä¼ æ„Ÿå™¨ç›‘æµ‹,åç»­è€ƒè™‘åŠ å…¥åŠ›çŸ©ä¼ æ„Ÿå™¨åº”å˜ç‰‡ç­‰ */
 void DJIMotorChangeFeed(DJIMotorInstance *motor, Closeloop_Type_e loop, Feedback_Source_e type)
 {
     if (loop == ANGLE_LOOP)
@@ -205,7 +205,7 @@ void DJIMotorChangeFeed(DJIMotorInstance *motor, Closeloop_Type_e loop, Feedback
     else if (loop == SPEED_LOOP)
         motor->motor_settings.speed_feedback_source = type;
     else
-        LOGERROR("[dji_motor] loop type error, check memory access and func param"); // ¼ì²éÊÇ·ñ´«ÈëÁËÕıÈ·µÄLOOPÀàĞÍ,»ò·¢ÉúÁËÖ¸ÕëÔ½½ç
+        LOGERROR("[dji_motor] loop type error, check memory access and func param"); // æ£€æŸ¥æ˜¯å¦ä¼ å…¥äº†æ­£ç¡®çš„LOOPç±»å‹,æˆ–å‘ç”Ÿäº†æŒ‡é’ˆè¶Šç•Œ
 }
 
 void DJIMotorStop(DJIMotorInstance *motor)
@@ -218,13 +218,13 @@ void DJIMotorEnable(DJIMotorInstance *motor)
     motor->stop_flag = MOTOR_ENALBED;
 }
 
-/* ĞŞ¸Äµç»úµÄÊµ¼Ê±Õ»·¶ÔÏó */
+/* ä¿®æ”¹ç”µæœºçš„å®é™…é—­ç¯å¯¹è±¡ */
 void DJIMotorOuterLoop(DJIMotorInstance *motor, Closeloop_Type_e outer_loop)
 {
     motor->motor_settings.outer_loop_type = outer_loop;
 }
 
-// ÉèÖÃ²Î¿¼Öµ
+// è®¾ç½®å‚è€ƒå€¼
 void DJIMotorSetRef(DJIMotorInstance *motor, float ref)
 {
     motor->motor_controller.pid_ref = ref;
@@ -235,45 +235,45 @@ float DJIMotorGetAngle(DJIMotorInstance *motor)
 	return motor->measure.total_angle;
 }
 
-// ÎªËùÓĞµç»úÊµÀı¼ÆËãÈı»·PID,·¢ËÍ¿ØÖÆ±¨ÎÄ
+// ä¸ºæ‰€æœ‰ç”µæœºå®ä¾‹è®¡ç®—ä¸‰ç¯PID,å‘é€æ§åˆ¶æŠ¥æ–‡
 void DJIMotorControl()
 {
-    // Ö±½Ó±£´æÒ»´ÎÖ¸ÕëÒıÓÃ´Ó¶ø¼õĞ¡·Ã´æµÄ¿ªÏú,Í¬Ñù¿ÉÒÔÌá¸ß¿É¶ÁĞÔ
-    uint8_t group, num; // µç»ú×éºÅºÍ×éÄÚ±àºÅ
-    int16_t set;        // µç»ú¿ØÖÆCAN·¢ËÍÉè¶¨Öµ
+    // ç›´æ¥ä¿å­˜ä¸€æ¬¡æŒ‡é’ˆå¼•ç”¨ä»è€Œå‡å°è®¿å­˜çš„å¼€é”€,åŒæ ·å¯ä»¥æé«˜å¯è¯»æ€§
+    uint8_t group, num; // ç”µæœºç»„å·å’Œç»„å†…ç¼–å·
+    int16_t set;        // ç”µæœºæ§åˆ¶CANå‘é€è®¾å®šå€¼
     DJIMotorInstance *motor;
-    Motor_Control_Setting_s *motor_setting; // µç»ú¿ØÖÆ²ÎÊı
-    Motor_Controller_s *motor_controller;   // µç»ú¿ØÖÆÆ÷
-    DJI_Motor_Measure_s *measure;           // µç»ú²âÁ¿Öµ
-    float pid_measure, pid_ref;             // µç»úPID²âÁ¿ÖµºÍÉè¶¨Öµ
+    Motor_Control_Setting_s *motor_setting; // ç”µæœºæ§åˆ¶å‚æ•°
+    Motor_Controller_s *motor_controller;   // ç”µæœºæ§åˆ¶å™¨
+    DJI_Motor_Measure_s *measure;           // ç”µæœºæµ‹é‡å€¼
+    float pid_measure, pid_ref;             // ç”µæœºPIDæµ‹é‡å€¼å’Œè®¾å®šå€¼
 
-    // ±éÀúËùÓĞµç»úÊµÀı,½øĞĞ´®¼¶PIDµÄ¼ÆËã²¢ÉèÖÃ·¢ËÍ±¨ÎÄµÄÖµ
+    // éå†æ‰€æœ‰ç”µæœºå®ä¾‹,è¿›è¡Œä¸²çº§PIDçš„è®¡ç®—å¹¶è®¾ç½®å‘é€æŠ¥æ–‡çš„å€¼
     for (size_t i = 0; i < idx; ++i)
-    { // ¼õĞ¡·Ã´æ¿ªÏú,ÏÈ±£´æÖ¸ÕëÒıÓÃ
+    { // å‡å°è®¿å­˜å¼€é”€,å…ˆä¿å­˜æŒ‡é’ˆå¼•ç”¨
         motor = dji_motor_instance[i];
         motor_setting = &motor->motor_settings;
         motor_controller = &motor->motor_controller;
         measure = &motor->measure;
-        pid_ref = motor_controller->pid_ref; // ±£´æÉè¶¨Öµ,·ÀÖ¹motor_controller->pid_refÔÚ¼ÆËã¹ı³ÌÖĞ±»ĞŞ¸Ä
+        pid_ref = motor_controller->pid_ref; // ä¿å­˜è®¾å®šå€¼,é˜²æ­¢motor_controller->pid_refåœ¨è®¡ç®—è¿‡ç¨‹ä¸­è¢«ä¿®æ”¹
         if (motor_setting->motor_reverse_flag == MOTOR_DIRECTION_REVERSE)
-            pid_ref *= -1; // ÉèÖÃ·´×ª
+            pid_ref *= -1; // è®¾ç½®åè½¬
 
-        // pid_ref»áË³´ÎÍ¨¹ı±»ÆôÓÃµÄ±Õ»·³äµ±Êı¾İµÄÔØÌå
-        // ¼ÆËãÎ»ÖÃ»·,Ö»ÓĞÆôÓÃÎ»ÖÃ»·ÇÒÍâ²ã±Õ»·ÎªÎ»ÖÃÊ±»á¼ÆËãËÙ¶È»·Êä³ö
+        // pid_refä¼šé¡ºæ¬¡é€šè¿‡è¢«å¯ç”¨çš„é—­ç¯å……å½“æ•°æ®çš„è½½ä½“
+        // è®¡ç®—ä½ç½®ç¯,åªæœ‰å¯ç”¨ä½ç½®ç¯ä¸”å¤–å±‚é—­ç¯ä¸ºä½ç½®æ—¶ä¼šè®¡ç®—é€Ÿåº¦ç¯è¾“å‡º
         if ((motor_setting->close_loop_type & ANGLE_LOOP) && motor_setting->outer_loop_type == ANGLE_LOOP)
         {
             if (motor_setting->angle_feedback_source == OTHER_FEED)
                 pid_measure = *motor_controller->other_angle_feedback_ptr;
             else
-                pid_measure = measure->total_angle; // MOTOR_FEED,¶Ôtotal angle±Õ»·,·ÀÖ¹ÔÚ±ß½ç´¦³öÏÖÍ»Ô¾
-			// ¸üĞÂpid_ref½øÈëÏÂÒ»¸ö»·
+                pid_measure = measure->total_angle; // MOTOR_FEED,å¯¹total angleé—­ç¯,é˜²æ­¢åœ¨è¾¹ç•Œå¤„å‡ºç°çªè·ƒ
+			// æ›´æ–°pid_refè¿›å…¥ä¸‹ä¸€ä¸ªç¯
 			if(motor_setting->angle_rad_format_flag == FORMAT_ENABLE)
 				pid_ref = PIDCalculate(&motor_controller->angle_PID, RadFormat(pid_measure - pid_ref), 0);
 			else
 				pid_ref = PIDCalculate(&motor_controller->angle_PID, pid_measure, pid_ref);
         }
 
-        // ¼ÆËãËÙ¶È»·,(Íâ²ã±Õ»·ÎªËÙ¶È»òÎ»ÖÃ)ÇÒ(ÆôÓÃËÙ¶È»·)Ê±»á¼ÆËãËÙ¶È»·
+        // è®¡ç®—é€Ÿåº¦ç¯,(å¤–å±‚é—­ç¯ä¸ºé€Ÿåº¦æˆ–ä½ç½®)ä¸”(å¯ç”¨é€Ÿåº¦ç¯)æ—¶ä¼šè®¡ç®—é€Ÿåº¦ç¯
         if ((motor_setting->close_loop_type & SPEED_LOOP) && (motor_setting->outer_loop_type & (ANGLE_LOOP | SPEED_LOOP)))
         {
             if (motor_setting->feedforward_flag & SPEED_FEEDFORWARD)
@@ -283,11 +283,11 @@ void DJIMotorControl()
                 pid_measure = *motor_controller->other_speed_feedback_ptr;
             else // MOTOR_FEED
                 pid_measure = measure->speed_aps;
-            // ¸üĞÂpid_ref½øÈëÏÂÒ»¸ö»·
+            // æ›´æ–°pid_refè¿›å…¥ä¸‹ä¸€ä¸ªç¯
             pid_ref = PIDCalculate(&motor_controller->speed_PID, pid_measure, pid_ref);
         }
 
-        // ¼ÆËãµçÁ÷»·,Ä¿Ç°Ö»ÒªÆôÓÃÁËµçÁ÷»·¾Í¼ÆËã,²»¹ÜÍâ²ã±Õ»·ÊÇÊ²Ã´,²¢ÇÒµçÁ÷Ö»ÓĞµç»ú×ÔÉí´«¸ĞÆ÷µÄ·´À¡
+        // è®¡ç®—ç”µæµç¯,ç›®å‰åªè¦å¯ç”¨äº†ç”µæµç¯å°±è®¡ç®—,ä¸ç®¡å¤–å±‚é—­ç¯æ˜¯ä»€ä¹ˆ,å¹¶ä¸”ç”µæµåªæœ‰ç”µæœºè‡ªèº«ä¼ æ„Ÿå™¨çš„åé¦ˆ
         if (motor_setting->feedforward_flag & CURRENT_FEEDFORWARD)
             pid_ref += *motor_controller->current_feedforward_ptr;
         if (motor_setting->close_loop_type & CURRENT_LOOP)
@@ -298,21 +298,21 @@ void DJIMotorControl()
         if (motor_setting->feedback_reverse_flag == FEEDBACK_DIRECTION_REVERSE)
             pid_ref *= -1;
 
-        // »ñÈ¡×îÖÕÊä³ö
+        // è·å–æœ€ç»ˆè¾“å‡º
         set = (int16_t)pid_ref;
 
-        // ·Ö×éÌîÈë·¢ËÍÊı¾İ
+        // åˆ†ç»„å¡«å…¥å‘é€æ•°æ®
         group = motor->sender_group;
         num = motor->message_num;
-        sender_assignment[group].tx_buff[2 * num] = (uint8_t)(set >> 8);         // µÍ°ËÎ»
-        sender_assignment[group].tx_buff[2 * num + 1] = (uint8_t)(set & 0x00ff); // ¸ß°ËÎ»
+        sender_assignment[group].tx_buff[2 * num] = (uint8_t)(set >> 8);         // ä½å…«ä½
+        sender_assignment[group].tx_buff[2 * num + 1] = (uint8_t)(set & 0x00ff); // é«˜å…«ä½
 
-        // Èô¸Ãµç»ú´¦ÓÚÍ£Ö¹×´Ì¬,Ö±½Ó½«buffÖÃÁã
+        // è‹¥è¯¥ç”µæœºå¤„äºåœæ­¢çŠ¶æ€,ç›´æ¥å°†buffç½®é›¶
         if (motor->stop_flag == MOTOR_STOP)
             memset(sender_assignment[group].tx_buff + 2 * num, 0, sizeof(uint16_t));
     }
 
-    // ±éÀúflag,¼ì²éÊÇ·ñÒª·¢ËÍÕâÒ»Ö¡±¨ÎÄ
+    // éå†flag,æ£€æŸ¥æ˜¯å¦è¦å‘é€è¿™ä¸€å¸§æŠ¥æ–‡
     for (size_t i = 0; i < 6; ++i)
     {
         if (sender_enable_flag[i])

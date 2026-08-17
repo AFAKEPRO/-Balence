@@ -134,7 +134,7 @@ static void RemoteControlSet(void)
     {
 		VisionControlSet();
     }
-	else if (switch_is_up(rc_data[TEMP].rc.switch_left)) 			// 左侧开关状态为[上],视觉模式
+	else if (switch_is_up(rc_data[TEMP].rc.switch_left)) 			// 左侧开关状态为[上],小陀螺模式
     {
 		chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
     }

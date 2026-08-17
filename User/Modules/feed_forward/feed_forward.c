@@ -35,7 +35,7 @@ static void FeedForwardCacl(FeedForwardInstance *FF)
 //                  FF->last_out * rc_temp / (rc_temp + FF->dt);
 //	FF->final_out = FF->temp_out;
 
-	//ÏÞ·ù
+	//ï¿½Þ·ï¿½
 	if(FF->final_out > FF->max_out)
 	{
 		FF->final_out = FF->max_out;
@@ -44,7 +44,7 @@ static void FeedForwardCacl(FeedForwardInstance *FF)
 	{
 		FF->final_out = -(FF->max_out);
 	}
-	//µ±ÔË¶¯Ç÷ÊÆ¸Ä±äÊ±Ç°À¡Êä³öÎª0·ÀÖ¹Ó°ÏìÏìÓ¦ËÙ¶È
+	//ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½Æ¸Ä±ï¿½Ê±Ç°ï¿½ï¿½ï¿½ï¿½ï¿½Îª0ï¿½ï¿½Ö¹Ó°ï¿½ï¿½ï¿½ï¿½Ó¦ï¿½Ù¶ï¿½
 
 	
 

@@ -12,19 +12,19 @@
 #endif
 typedef __packed struct
 {
-    float input;        //ÊäÈëÊı¾İ
-    float out;          //Êä³öÊı¾İ
-    float min_value;    //ÏŞ·ù×îĞ¡Öµ
-    float max_value;    //ÏŞ·ù×î´óÖµ
-    float frame_period; //Ê±¼ä¼ä¸ô
+    float input;        //è¾“å…¥æ•°æ®
+    float out;          //è¾“å‡ºæ•°æ®
+    float min_value;    //é™å¹…æœ€å°å€¼
+    float max_value;    //é™å¹…æœ€å¤§å€¼
+    float frame_period; //æ—¶é—´é—´éš”
 } ramp_function_source_t;
 
 typedef __packed struct
 {
-    float input;        //ÊäÈëÊı¾İ
-    float out;          //ÂË²¨Êä³öµÄÊı¾İ
-    float num[1];       //ÂË²¨²ÎÊı
-    float frame_period; //ÂË²¨µÄÊ±¼ä¼ä¸ô µ¥Î» s
+    float input;        //è¾“å…¥æ•°æ®
+    float out;          //æ»¤æ³¢è¾“å‡ºçš„æ•°æ®
+    float num[1];       //æ»¤æ³¢å‚æ•°
+    float frame_period; //æ»¤æ³¢çš„æ—¶é—´é—´éš” å•ä½ s
 } first_order_filter_type_t;
 typedef __packed struct
 {
@@ -43,51 +43,51 @@ typedef __packed struct
 } Ordinary_Least_Squares_t;
 //typedef struct
 //{
-//    float x;  // ¹À¼ÆµÄ×´Ì¬
-//    float P;  // ¹À¼ÆµÄÎó²îĞ­·½²î
-//    float Q;  // ÏµÍ³ÔëÉùĞ­·½²î
-//    float R;  // ²âÁ¿ÔëÉùĞ­·½²î
-//} KalmanFilter;// ¿¨¶ûÂüÂË²¨½á¹¹Ìå
+//    float x;  // ä¼°è®¡çš„çŠ¶æ€
+//    float P;  // ä¼°è®¡çš„è¯¯å·®åæ–¹å·®
+//    float Q;  // ç³»ç»Ÿå™ªå£°åæ–¹å·®
+//    float R;  // æµ‹é‡å™ªå£°åæ–¹å·®
+//} KalmanFilter;// å¡å°”æ›¼æ»¤æ³¢ç»“æ„ä½“
 
-//¿ìËÙ¿ª·½
+//å¿«é€Ÿå¼€æ–¹
 extern float invSqrt(float num);
 
-//Ğ±²¨º¯Êı³õÊ¼»¯
+//æ–œæ³¢å‡½æ•°åˆå§‹åŒ–
 void ramp_init(ramp_function_source_t *ramp_source_type, float frame_period, float max, float min);
 
-//Ğ±²¨º¯Êı¼ÆËã
+//æ–œæ³¢å‡½æ•°è®¡ç®—
 void ramp_calc(ramp_function_source_t *ramp_source_type, float input);
-//Ò»½×ÂË²¨³õÊ¼»¯
+//ä¸€é˜¶æ»¤æ³¢åˆå§‹åŒ–
 extern void first_order_filter_init(first_order_filter_type_t *first_order_filter_type, float frame_period, const float num[1]);
-//Ò»½×ÂË²¨¼ÆËã
+//ä¸€é˜¶æ»¤æ³¢è®¡ç®—
 void first_order_filter_cali(first_order_filter_type_t *first_order_filter_type, float input);
-//¿¨¶ûÂüÂË²¨³õÊ¼»¯
+//å¡å°”æ›¼æ»¤æ³¢åˆå§‹åŒ–
 //void Kalman_Filter_Init(KalmanFilter *kf, float initial_x, float initial_P, float initial_Q, float initial_R);
-////¿¨¶ûÂüÂË²¨¼ÆËã
+////å¡å°”æ›¼æ»¤æ³¢è®¡ç®—
 //void Kalman_Filter_Calc(KalmanFilter *kf, float measurement);
-//¾ø¶ÔÏŞÖÆ
+//ç»å¯¹é™åˆ¶
 extern void abs_limit(float *num, float Limit);
-//ÅĞ¶Ï·ûºÅÎ»
+//åˆ¤æ–­ç¬¦å·ä½
 extern float sign(float value);
-//¸¡µãËÀÇø
+//æµ®ç‚¹æ­»åŒº
 extern float fp32_deadline(float Value, float minValue, float maxValue);
-//int26ËÀÇø
+//int26æ­»åŒº
 extern int16_t int16_deadline(int16_t Value, int16_t minValue, int16_t maxValue);
-//ÏŞ·ùº¯Êı
+//é™å¹…å‡½æ•°
 extern float fp32_constrain(float Value, float minValue, float maxValue);
-//ÏŞ·ùº¯Êı
+//é™å¹…å‡½æ•°
 extern int16_t int16_constrain(int16_t Value, int16_t minValue, int16_t maxValue);
-//Ñ­»·ÏŞ·ùº¯Êı
+//å¾ªç¯é™å¹…å‡½æ•°
 extern float loop_fp32_constrain(float Input, float minValue, float maxValue);
-//»¡¶ÈÏŞ·ù -PI ~ PI
+//å¼§åº¦é™å¹… -PI ~ PI
 float RadFormat(float rad);
-//½Ç¶È ¡ãÏŞ·ù 180 ~ -180
+//è§’åº¦ Â°é™å¹… 180 ~ -180
 extern float theta_format(float Ang);
-//×îĞ¡¶ş³Ë·¨ÇóÎ¢·Ö
+//æœ€å°äºŒä¹˜æ³•æ±‚å¾®åˆ†
 float OLS_Derivative(Ordinary_Least_Squares_t *OLS, float deltax, float y);
-//×îĞ¡¶ş³Ë·¨³õÊ¼»¯
+//æœ€å°äºŒä¹˜æ³•åˆå§‹åŒ–
 void OLS_Init(Ordinary_Least_Squares_t *OLS, uint16_t order);
-//ÏŞ·ùº¯Êı
+//é™å¹…å‡½æ•°
 float float_constrain(float Value, float minValue, float maxValue);
 
 int float_rounding(float raw);
@@ -96,7 +96,7 @@ float RadToDeg(float rad);
 
 float DegToRad(float deg);
 
-//»¡¶È¸ñÊ½»¯Îª-PI~PI
+//å¼§åº¦æ ¼å¼åŒ–ä¸º-PI~PI
 #define rad_format(Ang) loop_fp32_constrain((Ang), -PI, PI)
 
 #endif
