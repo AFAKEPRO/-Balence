@@ -1,12 +1,15 @@
+//App
 #include "chassis_control.h"
 #include "robot_def.h"
 #include "INS_task.h"
+//Modules
 #include "message_center.h"
 #include "dji_motor.h"
 #include "dm_motor.h"
-#include "bsp_dwt.h"
 #include "user_lib.h"
 #include "controller.h"
+//Bsp
+#include "bsp_dwt.h"
 #include "math.h"
 
 #define CalKArray(len,a,b,c)		(a*len*len + b*len + c)
@@ -58,7 +61,7 @@ static float Torque_f[2], Torque_b[2];
 static float Actual_Force[2], Actual_Torque[2];
 
 //机体变量
-static float vx, v_fusion, vx_set;
+static float vx, v_fusion;
 static float leg_pitch[2], leg_pitch_speed[2];					//左右机构各自的腿部状态向量的数据，临时变量，用来计算平均的
 
 chassis_control_s state_vector;                			//状态向量
@@ -226,6 +229,8 @@ void ChassisInit()
 	DMMotorCaliEncoder(joint_lb);
 	DMMotorCaliEncoder(joint_rb);
 
+	state_vector.x = state_vector.x_set;
+
 	DWT_GetDeltaT(&dwt_cnt);
 
 	chassis_sub = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
@@ -291,16 +296,16 @@ static void SolveFiveRod()
 	{
 		a = ang_1[i];
 		b = ang_2[i];
-		Xb = L1+L2*arm_cos_f32(a);
-		Yb = L2*arm_sin_f32(a);
-		Xd = -L1+L2*arm_cos_f32(b);
-		Yd = L2*arm_sin_f32(b);
-		A = 2*L3*(Xb-Xd);
-		B=2*L3*(Yb-Yd);
-		C=(Xb-Xd)*(Xb-Xd)+(Yb-Yd)*(Yb-Yd);
-		c=2*atan2f((B+arm_sqrt_32(A*A+B*B-C*C)), (A-C));
-		Xc=Xb+L3*arm_cos_f32(c);
-		Yc=Yb+L3*arm_sin_f32(c);
+		Xb = L1 + L2 * arm_cos_f32(a);
+		Yb = L2 * arm_sin_f32(a);
+		Xd = -L1 + L2 * arm_cos_f32(b);
+		Yd = L2 * arm_sin_f32(b);
+		A = 2 * L3 * (Xb-Xd);
+		B=2 * L3 * (Yb-Yd);
+		C=(Xb - Xd) * (Xb - Xd) + (Yb - Yd) * (Yb - Yd);
+		c=2 * atan2f((B + arm_sqrt_32(A*A+B*B-C*C)), (A-C));
+		Xc=Xb + L3 * arm_cos_f32(c);
+		Yc=Yb + L3 * arm_sin_f32(c);
 		d=atan2f((Yc-Yd), (Xc-Xd));
 		
 		//得到虚拟腿长和虚拟腿角
@@ -363,6 +368,7 @@ static void UpdataStateVector()
 	wheel_x[0] = DJIMotorGetAngle(wheel_l);
 	wheel_x[1] = DJIMotorGetAngle(wheel_r);
 	state_vector.x = (wheel_x[0] + wheel_x[1])/2.0f / REDUCTION_RATIO_WHEEL * RADIUS_WHEEL;
+	state_vector.x_set = chassis_cmd_recv.x_set;
 }
 
 /**
@@ -414,8 +420,8 @@ static float CalGravityFF(float leg_len)
 
 	static int i=0;
 	static float Virtual_Force_FF;
-	static float leg_centroid[6]={0.1244,0.12567,0.13454,0.14671,0.161,0.17748};//{0.04096,0.04421,0.04925,0.05511,0.06142,0.06840}{0.0369,0.0376,0.0402,0.0443,0.0486,0.054}
-	static float leg_body_centroid[6]={0.13835,0.16718,0.19691,0.22703,0.25740 ,0.28801};//{0.11935,0.17083,0.20279,0.21987,0.28279,0.30153}{0.11489,0.15452,0.18668,0.21973,0.25973,0.29306}{0.013775,0.017022,0.020225,0.023467,0.02682,0.030062}
+	static float leg_centroid[6]={0.1244,0.12567,0.13454,0.14671,0.161,0.17748};
+	static float leg_body_centroid[6]={0.13835,0.16718,0.19691,0.22703,0.25740 ,0.28801};
 	static float first_leg_len=0.15f;//[6]={0.15,0.19,0.23,0.27,0.31,0.35};
 	
 	i=(int)((leg_len - first_leg_len)/0.04f);
@@ -442,9 +448,9 @@ static void CalWheelTorque()
 		case CHASSIS_INIT:							
 		case CHASSIS_BALANCE:										//lqr基础力矩叠加yaw转向pid
 			if(off_ground_flag == ON_GROUND)
-			{
-				measure = chassis_IMU_data->Yaw;
-				ref = 0;							//还没敲定
+			{	
+				ref = chassis_cmd_recv.chassis_yaw_speed_set;		//没有云台，yaw暂时只用速度环
+				measure = chassis_IMU_data->Gyro[2];										
 				PIDCalculate(&yaw_pid, measure, ref);
 
 				T_Wheel_set[0] = T[0] + yaw_pid.Output;
@@ -452,7 +458,7 @@ static void CalWheelTorque()
 			}
 			else
 			{	
-				ref = vx_set;
+				ref = chassis_cmd_recv.vx_set;
 				measure = vx;
 				PIDCalculate(&vx_pid, measure, ref);
 				T_Wheel_set[0] = vx_pid.Output;			
@@ -460,21 +466,22 @@ static void CalWheelTorque()
 			}
 			break;
 
-		case CHASSIS_DOWN:											//vx_pid叠加倒地双环pid（为了让yaw回到0点）
-			ref = vx_set;
+		case CHASSIS_DOWN:											//vx_pid叠加倒地yaw转向环
+			ref = chassis_cmd_recv.vx_set;
 			measure = vx;
 			PIDCalculate(&vx_pid, measure, ref);
-			ref = 0;
-			measure = chassis_IMU_data->Yaw;
-			PIDCalculate(&down_yaw_pid, measure, ref);
+		//	ref = 0;
+		//	measure = chassis_IMU_data->Yaw;
+		//	PIDCalculate(&down_yaw_pid, measure, ref);
 			measure = chassis_IMU_data->Gyro[2];
-			PIDCalculate(&down_yaw_speed_pid, measure, down_yaw_pid.Output);
+			ref = chassis_cmd_recv.chassis_yaw_speed_set;
+			PIDCalculate(&down_yaw_speed_pid, measure, ref);
 			T_Wheel_set[0] = vx_pid.Output + down_yaw_speed_pid.Output;			
 			T_Wheel_set[1] = vx_pid.Output - down_yaw_speed_pid.Output;
 			break;
 
 		case CHASSIS_JUMP:											//两轮都用vx_pid
-			ref = vx_set;
+			ref = chassis_cmd_recv.vx_set;
 			measure = vx;
 			PIDCalculate(&vx_pid, measure, ref);
 			T_Wheel_set[0] = vx_pid.Output;			
@@ -496,10 +503,23 @@ static void CalWheelTorque()
  */
 static void CalVirtualForce()
 {	
-	static float measure, leg_len_set;
+	static float measure, ref;
 
 	switch(chassis_cmd_recv.chassis_mode)
-	{
+	{	
+		//切入平衡模式和初始化模式的时候要清空Iout
+		if(chassis_cmd_recv.leg_pid_Iout_flag == IOUT_REMOVE)
+		{
+			leg_pid[0].Iout = 0;
+			leg_pid[1].Iout = 0;
+			chassis_cmd_recv.leg_pid_Iout_flag = IOUT_RESERVE;
+		}
+		if(chassis_cmd_recv.roll_pid_Iout_flag == IOUT_REMOVE)
+		{
+			roll_pid.Iout = 0;
+			chassis_cmd_recv.roll_pid_Iout_flag = IOUT_RESERVE;
+		}
+
 		case CHASSIS_CALI:						//CALI和DOWN模式下直接指定四个关节电机的力矩，用不到虚拟腿力，所以这里直接把虚拟腿力设定成0
 		case CHASSIS_DOWN:
 		case CHASSIS_ZERO_FORCE:
@@ -510,23 +530,23 @@ static void CalVirtualForce()
 		case CHASSIS_INIT:						//初始化时，虚拟腿力不叠加重补
 			measure = chassis_IMU_data->Roll;
 			PIDCalculate(&roll_pid, measure, 0);
-			leg_len_set = INIT_LEG_LEN;
+			ref = INIT_LEG_LEN;
 			measure = leg_len[0];
-			PIDCalculate(&leg_pid[0], measure, leg_len_set);
+			PIDCalculate(&leg_pid[0], measure, ref);
 			measure = leg_len[1];
-			PIDCalculate(&leg_pid[1], measure, leg_len_set);
+			PIDCalculate(&leg_pid[1], measure, ref);
 			Virtual_Force[0] = leg_pid[0].Output + roll_pid.Output;
 			Virtual_Force[1] = leg_pid[1].Output - roll_pid.Output;
 			break;
 
-		case CHASSIS_BALANCE:
+		case CHASSIS_BALANCE:					//虚拟腿力 = 腿长pid叠加roll补偿叠加重力补偿
 			measure = chassis_IMU_data->Roll;
 			PIDCalculate(&roll_pid, measure, 0);
-			leg_len_set = chassis_cmd_recv.leg_len_cmd;
+			ref = chassis_cmd_recv.leg_len_set;
 			measure = leg_len[0];
-			PIDCalculate(&leg_pid[0], measure, leg_len_set);
+			PIDCalculate(&leg_pid[0], measure, ref);
 			measure = leg_len[1];
-			PIDCalculate(&leg_pid[1], measure, leg_len_set);
+			PIDCalculate(&leg_pid[1], measure, ref);
 			Virtual_Force[0] = leg_pid[0].Output + roll_pid.Output + CalGravityFF(leg_len[0]);
 			Virtual_Force[1] = leg_pid[1].Output - roll_pid.Output + CalGravityFF(leg_len[1]);
 			break;
@@ -538,6 +558,7 @@ static void CalVirtualForce()
 		default:
 			Virtual_Force[0] = 0;
 			Virtual_Force[1] = 0;
+			break;
 	}
 }
 
@@ -570,6 +591,8 @@ static void CalVirtualTorque()
 			break;
 	
 		default:
+			Virtual_Torque[0] = 0;
+			Virtual_Torque[1] = 0;
 			break;
 	}
 }
@@ -604,6 +627,13 @@ static void SolveVMC()
 					Torque_f[i] = (L2 * arm_cos_f32(a - c + PI/2) * (Ft * arm_cos_f32(angle - d) + F * arm_sin_f32(angle - d)))/(arm_cos_f32(angle - c)*arm_sin_f32(angle - d) - arm_cos_f32(angle - d)*arm_sin_f32(angle - c));
 					Torque_b[i] = -(L2*arm_cos_f32(b - d + PI/2) * (Ft * arm_cos_f32(angle - c) + F * arm_sin_f32(angle - c)))/(arm_cos_f32(angle - c)*arm_sin_f32(angle - d) - arm_cos_f32(angle - d)*arm_sin_f32(angle - c));
 				}
+			break;
+		
+		default:
+			Torque_f[0] = 0;
+			Torque_f[1] = 0;
+			Torque_b[0] = 0;
+			Torque_b[1] = 0;
 			break;
 	}
 
@@ -667,7 +697,7 @@ void ChassisTask(void)
     // 根据控制模式设定旋转速度
     switch (chassis_cmd_recv.chassis_mode)
     {
-  
+		
     }
 
 	CalRealtiveAngle();

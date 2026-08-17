@@ -35,7 +35,7 @@ void StartROBOTTASK(void const *argument);
 void OSTaskInit(void)
 {
 	osThreadDef(instask, StartINSTASK, osPriorityRealtime, 0, 1024);
-    insTaskHandle = osThreadCreate(osThread(instask), NULL); // ÓÉÓÚÊÇ×èÈû¶ÁÈ¡´«¸ĞÆ÷,Îª×ËÌ¬½âËãÉèÖÃ½Ï¸ßÓÅÏÈ¼¶,È·±£ÒÔ1khzµÄÆµÂÊÖ´ĞĞ
+    insTaskHandle = osThreadCreate(osThread(instask), NULL); // ç”±äºæ˜¯é˜»å¡è¯»å–ä¼ æ„Ÿå™¨,ä¸ºå§¿æ€è§£ç®—è®¾ç½®è¾ƒé«˜ä¼˜å…ˆçº§,ç¡®ä¿ä»¥1khzçš„é¢‘ç‡æ‰§è¡Œ
 	
 	osThreadDef(motortask, StartMOTORTASK, osPriorityNormal, 0, 256);
     motorTaskHandle = osThreadCreate(osThread(motortask), NULL);
@@ -53,7 +53,7 @@ __attribute__((noreturn)) void StartINSTASK(void const *argument)
 {
     static float ins_start;
     static float ins_dt;
-    INS_Init(); // È·±£BMI088±»ÕıÈ·³õÊ¼»¯.
+    INS_Init(); // ç¡®ä¿BMI088è¢«æ­£ç¡®åˆå§‹åŒ–.
     LOGINFO("[freeRTOS] INS Task Start");
     for (;;)
     {
@@ -63,7 +63,7 @@ __attribute__((noreturn)) void StartINSTASK(void const *argument)
         ins_dt = DWT_GetTimeline_ms() - ins_start;
         if (ins_dt > 1)
             LOGERROR("[freeRTOS] INS Task is being DELAY! dt = [%f]", &ins_dt);
-//        VisionSend(); // ½âËãÍê³Éºó·¢ËÍÊÓ¾õÊı¾İ,µ«ÊÇµ±Ç°µÄÊµÏÖ²»Ì«ÓÅÑÅ,ºóĞøÈôÌí¼ÓÓ²¼ş´¥·¢ĞèÒªÖØĞÂ¿¼ÂÇ½á¹¹µÄ×éÖ¯
+//        VisionSend(); // è§£ç®—å®Œæˆåå‘é€è§†è§‰æ•°æ®,ä½†æ˜¯å½“å‰çš„å®ç°ä¸å¤ªä¼˜é›…,åç»­è‹¥æ·»åŠ ç¡¬ä»¶è§¦å‘éœ€è¦é‡æ–°è€ƒè™‘ç»“æ„çš„ç»„ç»‡
         osDelay(1);
     }
 }
@@ -108,7 +108,7 @@ __attribute__((noreturn)) void StartROBOTTASK(void const *argument)
     static float robot_dt;
     static float robot_start;
     LOGINFO("[freeRTOS] ROBOT core Task Start");
-    // 200Hz-500Hz,ÈôÓĞ¶îÍâµÄ¿ØÖÆÈÎÎñÈçÆ½ºâ²½±ø¿ÉÄÜĞèÒªÌáÉıÖÁ1kHz
+    // 200Hz-500Hz,è‹¥æœ‰é¢å¤–çš„æ§åˆ¶ä»»åŠ¡å¦‚å¹³è¡¡æ­¥å…µå¯èƒ½éœ€è¦æå‡è‡³1kHz
     for (;;)
     {
         robot_start = DWT_GetTimeline_ms();

@@ -48,11 +48,11 @@
 #define HALF_BODY_M 7.555f  //8.0f
 //腿的质量 (kg) 1.027*20
 #define LEG_M 2.054f
-#define LEG_LEN_MIN 0.001f
-#define LEG_LEN_MAX 0.017f
+#define LEG_LEN_MIN 0.065f
+#define LEG_LEN_MAX 0.152f
 #define REDUCTION_RATIO_WHEEL 19.0f // 电机减速比,因为编码器量测的是转子的速度而不是输出轴的速度故需进行转换
 #define RADIUS_WHEEL 0.076f             // 轮子半径
-#define INIT_LEG_LEN 0.05f
+#define INIT_LEG_LEN 0.065f
 
 // 检查是否出现主控板定义冲突,只允许一个开发板定义存在,否则编译会自动报错
 //#if (defined(ONE_BOARD) && defined(CHASSIS_BOARD)) || \
@@ -96,6 +96,13 @@ typedef enum
     CHASSIS_BALANCE,
     CHASSIS_JUMP,
 } chassis_mode_e;
+
+typedef enum
+{
+    CHASSIS_FOLLOW_GIMBAL_YAW = 0,
+    CHASSIS_NO_FOLLOW,
+    CHASSIS_ROTATE,
+}chassis_yaw_mode_e;
 
 // 云台模式设置
 typedef enum
@@ -175,18 +182,17 @@ typedef struct
 typedef struct
 {
     // 控制部分
-    float vx;           // 前进方向速度
-    float vy;           // 横移方向速度
-    float wz;           // 旋转速度
+    float x_set;
+    float vx_set;           // 前进方向速度
+    float chassis_yaw_speed_set;
     float offset_angle; // 底盘和归中位置的夹角
-    float leg_len_cmd;
+    float leg_len_set;
     chassis_mode_e chassis_mode;
-    int chassis_speed_buff;
-    // UI部分
-	gimbal_mode_e gimbal_mode;				 // 云台模式
-	loader_mode_e loader_mode;				 // 发射模式设置
-	friction_mode_e friction_mode;			 // 摩擦轮关闭
-	Vision_State_e vision_state;			 // 弹舱盖打开
+    chassis_mode_e last_chassis_mode;
+    chassis_yaw_mode_e chassis_yaw_mode;
+    Iout_remove_flag_e leg_pid_Iout_flag;
+    Iout_remove_flag_e roll_pid_Iout_flag;
+
 } Chassis_Ctrl_Cmd_s;
 
 // cmd发布的云台控制数据,由gimbal订阅
@@ -212,6 +218,12 @@ typedef struct
     float shoot_rate; // 连续发射的射频,unit per s,发/秒
 } Shoot_Ctrl_Cmd_s;
 
+typedef enum
+{
+    IOUT_RESERVE = 0,
+    IOUT_REMOVE,
+}Iout_remove_flag_e;
+
 /* ----------------gimbal/shoot/chassis发布的反馈数据----------------*/
 /**
  * @brief 由cmd订阅,其他应用也可以根据需要获取.
@@ -223,9 +235,10 @@ typedef struct
 #if defined(CHASSIS_BOARD) || defined(GIMBAL_BOARD) // 非单板的时候底盘还将imu数据回传(若有必要)
     // attitude_t chassis_imu_data;
 #endif
-	float real_vx;
-	float real_vy;
-	float real_wz;
+	float vx;
+	float x;
+	float leg_len;
+    float chassis_yaw;
 
     uint8_t rest_heat;           // 剩余枪口热量
 	uint16_t heat_limit;
