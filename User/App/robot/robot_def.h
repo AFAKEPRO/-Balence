@@ -104,50 +104,6 @@ typedef enum
     CHASSIS_ROTATE,
 }chassis_yaw_mode_e;
 
-// 云台模式设置
-typedef enum
-{
-    GIMBAL_ZERO_FORCE = 0, // 电流零输入
-    GIMBAL_FREE_MODE,      // 云台自由运动模式,即与底盘分离(底盘此时应为NO_FOLLOW)反馈值为电机total_angle;似乎可以改为全部用IMU数据?
-    GIMBAL_GYRO_MODE,      // 云台陀螺仪反馈模式,反馈值为陀螺仪pitch,total_yaw_angle,底盘可以为小陀螺和跟随模式
-} gimbal_mode_e;
-
-// 发射模式设置
-typedef enum
-{
-    SHOOT_OFF = 0,
-    SHOOT_ON = 1,
-} shoot_mode_e;
-
-typedef enum
-{
-    FRICTION_OFF = 0, // 摩擦轮关闭
-    FRICTION_ON,      // 摩擦轮开启
-} friction_mode_e;
-
-typedef enum
-{
-    LID_OPEN = 0, // 弹舱盖打开
-    LID_CLOSE,    // 弹舱盖关闭
-} lid_mode_e;
-
-typedef enum
-{
-    LOAD_STOP = 0,  // 停止发射
-    LOAD_REVERSE,   // 反转
-    LOAD_1_BULLET,  // 单发
-    LOAD_BURSTFIRE, // 连发
-} loader_mode_e;
-
-typedef enum
-{
-	BIG_AMU_10 = 10,
-	SMALL_AMU_15 = 15,
-	BIG_AMU_16 = 16,
-	SMALL_AMU_18 = 18,
-	SMALL_AMU_30 = 30,
-	TEST = 0,
-} Bullet_Speed_e;
 
 typedef enum
 {
@@ -155,11 +111,12 @@ typedef enum
 	ENEMY_BLUE 			=			1,   //蓝方	
 } Enemy_Color_e;
 
+
 typedef enum
 {
-	NO_TARGET = 0,
-	TARGET_LOCK	 = 1,
-} Vision_State_e;
+    IOUT_RESERVE = 0,
+    IOUT_REMOVE,
+}Iout_remove_flag_e;
 
 typedef enum
 {
@@ -185,46 +142,22 @@ typedef struct
     float x_set;
     float vx_set;           // 前进方向速度
     float chassis_yaw_speed_set;
-    float offset_angle; // 底盘和归中位置的夹角
     float leg_len_set;
+	
+	//底盘状态机
     chassis_mode_e chassis_mode;
     chassis_mode_e last_chassis_mode;
     chassis_yaw_mode_e chassis_yaw_mode;
+	//标志位
     Iout_remove_flag_e leg_pid_Iout_flag;
     Iout_remove_flag_e roll_pid_Iout_flag;
 
 } Chassis_Ctrl_Cmd_s;
 
-// cmd发布的云台控制数据,由gimbal订阅
-typedef struct
-{ // 云台角度控制
-    float yaw;
-    float pitch;
-    float chassis_rotate_wz;
 
-    gimbal_mode_e gimbal_mode;
-} Gimbal_Ctrl_Cmd_s;
 
-// cmd发布的发射控制数据,由shoot订阅
-typedef struct
-{
-    shoot_mode_e shoot_mode;
-    loader_mode_e load_mode;
-    lid_mode_e lid_mode;
-    friction_mode_e friction_mode;
-    Bullet_Speed_e bullet_speed; // 弹速枚举
-    uint8_t rest_heat;
-	uint16_t heat_limit;
-    float shoot_rate; // 连续发射的射频,unit per s,发/秒
-} Shoot_Ctrl_Cmd_s;
 
-typedef enum
-{
-    IOUT_RESERVE = 0,
-    IOUT_REMOVE,
-}Iout_remove_flag_e;
-
-/* ----------------gimbal/shoot/chassis发布的反馈数据----------------*/
+/* ----------------chassis发布的反馈数据----------------*/
 /**
  * @brief 由cmd订阅,其他应用也可以根据需要获取.
  *
@@ -237,37 +170,14 @@ typedef struct
 #endif
 	float vx;
 	float x;
-	float leg_len;
+	float leg_len[2];
     float chassis_yaw;
-
-    uint8_t rest_heat;           // 剩余枪口热量
-	uint16_t heat_limit;
-    Enemy_Color_e enemy_color;   // 0 for blue, 1 for red
+	
+	chassis_mode_e chassis_mode;
 	
 } Chassis_Upload_Data_s;
 
 
-typedef struct
-{
-    attitude_t gimbal_imu_data;
-    float yaw_motor_single_round_angle;
-	float pitch_ecd_angle;
-} Gimbal_Upload_Data_s;
-
-typedef struct
-{
-    float aim_pitch;
-	float aim_yaw;
-	uint8_t fire_advice;
-	Vision_State_e vision_state;
-} Vision_Upload_Data_s;
-
-typedef struct
-{
-	uint8_t no_error;
-    // code to go here
-    // ...
-} Shoot_Upload_Data_s;
 
 #pragma pack() // 开启字节对齐,结束前面的#pragma pack(1)
 

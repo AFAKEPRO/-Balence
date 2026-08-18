@@ -3,7 +3,7 @@
 
 #include "stdint.h"
 #include "robot_def.h"
-
+/*
 #pragma pack(1)
 typedef struct
 {
@@ -22,5 +22,6 @@ typedef struct
 
 void CmdRevInit(void);
 void CmdRevTask(void);
+*/
 
 #endif

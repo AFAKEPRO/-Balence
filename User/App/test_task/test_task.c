@@ -1,7 +1,7 @@
 /**
   ****************************(C) COPYRIGHT 2019 DJI****************************
   * @file       test_task.c/h
-  * @brief      buzzer warning task.·äÃùÆ÷±¨¾¯ÈÎÎñ
+  * @brief      buzzer warning task.èœ‚é¸£å™¨æŠ¥è­¦ä»»åŠ¡
   * @note       
   * @history
   *  Version    Date            Author          Modification
@@ -28,7 +28,7 @@
   * @retval         none
   */
 /**
-  * @brief          testÈÎÎñ
+  * @brief          testä»»åŠ¡
   * @param[in]      pvParameters: NULL
   * @retval         none
   */

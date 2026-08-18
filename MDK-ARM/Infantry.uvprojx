@@ -3330,21 +3330,6 @@
               <FilePath>..\User\App\robot_cmd\robot_cmd.c</FilePath>
             </File>
             <File>
-              <FileName>gimbal.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\User\App\gimbal\gimbal.c</FilePath>
-            </File>
-            <File>
-              <FileName>chassis.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\User\App\chassis\chassis.c</FilePath>
-            </File>
-            <File>
-              <FileName>shoot.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\User\App\shoot\shoot.c</FilePath>
-            </File>
-            <File>
               <FileName>cmd_send.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\User\App\cmd_send\cmd_send.c</FilePath>
@@ -3368,11 +3353,6 @@
               <FileName>led_flow_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\User\App\led_flow_task\led_flow_task.c</FilePath>
-            </File>
-            <File>
-              <FileName>vision.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\User\App\vision\vision.c</FilePath>
             </File>
             <File>
               <FileName>calibrate.c</FileName>

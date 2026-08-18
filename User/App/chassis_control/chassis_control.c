@@ -490,7 +490,8 @@ static void CalWheelTorque()
 
 		default:
 			T_Wheel_set[0] = 0;
-			T_Wheel_set[1] = 0;	
+			T_Wheel_set[1] = 0;
+			break;	
 	}
 
 	DJIMotorSetRef(wheel_l, T_Wheel_set[0]);
@@ -697,7 +698,7 @@ void ChassisTask(void)
     // 根据控制模式设定旋转速度
     switch (chassis_cmd_recv.chassis_mode)
     {
-		
+		break;
     }
 
 	CalRealtiveAngle();
@@ -709,6 +710,14 @@ void ChassisTask(void)
 	CalVirtualTorque();
 	SolveVMC();
 	SolveRealWrench();
+
+	//获取底盘反馈值（给后续双板通信用）
+	chassis_feedback_data.chassis_mode = chassis_cmd_recv.chassis_mode;
+	chassis_feedback_data.leg_len[0] = leg_len[0];
+	chassis_feedback_data.leg_len[1] = leg_len[1];
+	chassis_feedback_data.chassis_yaw = chassis_IMU_data->Yaw;
+	chassis_feedback_data.vx = vx;
+	chassis_feedback_data.x = state_vector.x;
 
     // 推送反馈消息
     PubPushMessage(chassis_pub, (void *)&chassis_feedback_data);

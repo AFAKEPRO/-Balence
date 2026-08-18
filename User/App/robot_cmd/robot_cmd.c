@@ -87,7 +87,7 @@ static void RemoteControlSet(void)
 	}
 }
 
-static ControlModeChangeTransit(void)
+static void ControlModeChangeTransit(void)
 {   
     //切入零力模式
     if(chassis_cmd_send.last_chassis_mode != CHASSIS_ZERO_FORCE && chassis_cmd_send.chassis_mode ==CHASSIS_ZERO_FORCE)
@@ -173,9 +173,6 @@ void RobotCMDTask(void)
    // BMI088Acquire(bmi088_test,&bmi088_data) ;
     // 从其他应用获取回传数据
     SubGetMessage(chassis_feed_sub, &chassis_fetch_data);
-
-    // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
-    CalcOffsetAngle();
 
 	
 //	if(rc_data[TEMP].key[0].keys == 0x00 && rc_data[TEMP].key[1].keys == 0x00 && rc_data[TEMP].key[2].keys == 0)	//键盘有输入键盘控制

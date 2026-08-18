@@ -26,10 +26,7 @@ void RobotInit(void)
 	while (BMI088_init(0) != BMI088_NO_ERROR){};
 	BuzzerInit();
 	RobotCmdInit();
-	GimbalInit();
-	ChassisInit();
-    ShootInit();		
-	VisionInit();
+	ChassisInit();		
 //	CmdRevInit();
 	
 	OSTaskInit();
@@ -39,8 +36,6 @@ void RobotInit(void)
 void RobotTask(void)
 {
     RobotCMDTask();
-    GimbalTask();
-    ShootTask();
     ChassisTask();
 //	CmdRevTask();
 }

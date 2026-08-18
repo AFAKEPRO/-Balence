@@ -5,7 +5,7 @@
 #include "remote_control.h"
 
 #define CALIBRATE_DATA_ADDR ADDR_FLASH_SECTOR_11
-#define RC_CALI_VALUE_HOLE 600        //ң������˻����ڰ� ��ֵ�ж��� ң����ҡ������� 660 ֻҪ����630 ����Ϊ�����
+#define RC_CALI_VALUE_HOLE 600        //遥控器外八或者内八 阈值判定， 遥控器摇杆最大是 660 只要大于630 就认为到最大
 
 
 typedef enum
