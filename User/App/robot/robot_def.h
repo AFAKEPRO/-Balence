@@ -53,6 +53,8 @@
 #define REDUCTION_RATIO_WHEEL 19.0f // 电机减速比,因为编码器量测的是转子的速度而不是输出轴的速度故需进行转换
 #define RADIUS_WHEEL 0.076f             // 轮子半径
 #define INIT_LEG_LEN 0.065f
+#define CALI_TORQUE 1.0f
+#define CALI_HOLD_TIME 3.0f
 
 // 检查是否出现主控板定义冲突,只允许一个开发板定义存在,否则编译会自动报错
 //#if (defined(ONE_BOARD) && defined(CHASSIS_BOARD)) || \
@@ -172,8 +174,12 @@ typedef struct
 	float x;
 	float leg_len[2];
     float chassis_yaw;
+
+    float joint_zero[4];
+    float joint_done_flag;
 	
 	chassis_mode_e chassis_mode;
+    
 	
 } Chassis_Upload_Data_s;
 

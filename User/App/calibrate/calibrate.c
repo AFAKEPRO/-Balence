@@ -7,22 +7,21 @@
 #include "bsp_dwt.h"
 #include "stdlib.h"
 #include "buzzer.h"
+#include "chassis_control.h"
+#include "string.h"
 #include "tim.h"
 #include "BMI088driver.h"
 
 
-static Subscriber_t *gimbal_cali_sub;	// 云台反馈信息订阅者
-Gimbal_Upload_Data_s gimbal_cali_data; 	// 从云台获取的反馈信息
 static BuzzzerInstance *cali_buzzer;
-cali_data_t cali_data_save;	//云台校准数据
+cali_data_t cali_data_save;	//校准数据
 cail_mods state = CAIL_OFF;
 static uint8_t is_init;
 
-static void GimbalCalibrateControl(void);
+
 
 cali_data_t *CalibrateInit(void)
 {
-	gimbal_cali_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
 	memset(&cali_data_save,0,sizeof(cali_data_t));
 	is_init = 1;
 	//注册蜂鸣器
@@ -36,12 +35,8 @@ cali_data_t *CalibrateInit(void)
 	
 	//读取flash
 	flash_read(CALIBRATE_DATA_ADDR,(uint32_t *)&cali_data_save,sizeof(cali_data_t)/4);
-	if(cali_data_save.cali_status != 1)//若无校准数据则先赋值备用数据,备用数据在 [robo_def.h]
+	if(cali_data_save.cali_valid_flag != BOTH_VALID && cali_data_save.cali_valid_flag != ONLY_IMU)//若无校准数据则先赋值备用数据,备用数据在 [robo_def.h]
 	{
-		cali_data_save.max_pitch = PITCH_MAX_ANGLE;
-		cali_data_save.min_pitch = PITCH_MIN_ANGLE;
-		cali_data_save.zero_pitch = (PITCH_MAX_ANGLE + PITCH_MIN_ANGLE)/2;
-		cali_data_save.zero_yaw =	YAW_CHASSIS_ALIGN;
 		return &cali_data_save;
 	}
 	else
@@ -101,15 +96,16 @@ static void CalibrateReadyControl(RC_ctrl_t *cail_rc_data)
 	if(!run_time)
 		DWT_GetDeltaT(&run_cmd_time);
 	
-	//上外八校准云台
+	//上外八校准关节电机
 	if(cail_rc_data[TEMP].rc.rocker_l_ < -RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_l1 > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r_ > RC_CALI_VALUE_HOLE && cail_rc_data[TEMP].rc.rocker_r1 > RC_CALI_VALUE_HOLE)//上外八校准云台
 	{
 		if(!cali_cmd_time)
 			DWT_GetDeltaT(&cali_cmd_time);
 		calibrating_time += DWT_GetDeltaT(&cali_cmd_time);
 		if(calibrating_time > 2)//持续时间大于2s
-		{
-			state = CAIL_GIMBAL;
+		{	
+			ChassisJointCaliStart();
+			state = CAIL_JOINT;
 			run_time = 0;
 			cnt = 0;
 		}
@@ -153,54 +149,16 @@ static void CalibrateReadyControl(RC_ctrl_t *cail_rc_data)
 	}
 }
 
-static void GimbalCalibrateControl(void)
+uint8_t CalibrateJointRequested(void)
 {
-	static float max_pitch_temp = 0,min_pitch_temp = 0;
-	static float cali_time = 0;//校准持续时间
-	static uint32_t cali_start_time;//校准开始时间戳
-	
-	SubGetMessage(gimbal_cali_sub,&gimbal_cali_data);
-	if(cali_time == 0)
-	{
-		DWT_GetDeltaT(&cali_start_time);
-		//校准期间蜂鸣器持续报警
-		AlarmSetOctave(cali_buzzer,OCTAVE_1);
-		AlarmSetStatus(cali_buzzer,ALARM_ON);
-	}
-	if(!max_pitch_temp && !min_pitch_temp)	//赋初始值
-	{
-		max_pitch_temp = gimbal_cali_data.pitch_ecd_angle;
-		min_pitch_temp = gimbal_cali_data.pitch_ecd_angle;
-	}
-	if(cali_time < 10)//校准10s
-	{
-		cali_time += DWT_GetDeltaT(&cali_start_time);
-		if(max_pitch_temp < gimbal_cali_data.pitch_ecd_angle)	//记录最大pitch角度
-		{
-			max_pitch_temp = gimbal_cali_data.pitch_ecd_angle;
-		}
-		if(min_pitch_temp > gimbal_cali_data.pitch_ecd_angle)	//记录最小pitch角度
-		{
-			min_pitch_temp = gimbal_cali_data.pitch_ecd_angle;
-		}
-	}
-	else
-	{
-		cali_data_save.max_pitch = max_pitch_temp;
-		cali_data_save.min_pitch = min_pitch_temp;
-		cali_data_save.zero_pitch = (max_pitch_temp + min_pitch_temp) / 2;
-		cali_data_save.zero_yaw = gimbal_cali_data.yaw_motor_single_round_angle;
-		cali_data_save.cali_status = 1;
-		flash_erase_address(CALIBRATE_DATA_ADDR,1);
-		while(flash_write_single_address(CALIBRATE_DATA_ADDR, (uint32_t *)&cali_data_save, sizeof(cali_data_t)/4) != 0);//写入flash
-		AlarmSetStatus(cali_buzzer,ALARM_OFF);
-		state = CAIL_OFF;
-		//校准完成reset
-		__disable_irq();
-		NVIC_SystemReset();
-	}
+    return state == CAIL_JOINT;
 }
 
+void CalibrateJointCancel(void)
+{	
+	ChassisJointCaliAbort();
+    state = CAIL_OFF;
+}
 
 static void IMUCalibrateControl(void)
 {
@@ -211,6 +169,16 @@ static void IMUCalibrateControl(void)
 		cali_data_save.gyro_offset[i] = BMI088.GyroOffset[i];
 	cali_data_save.g_norm = BMI088.gNorm;
 	cali_data_save.temp_when_cail = BMI088.TempWhenCali;
+
+	if (cali_data_save.cali_valid_flag == ONLY_JOINT || cali_data_save.cali_valid_flag == BOTH_VALID)
+	{
+    	cali_data_save.cali_valid_flag = BOTH_VALID;
+	}
+	else
+	{
+    	cali_data_save.cali_valid_flag = ONLY_IMU;
+	}
+
 	flash_erase_address(CALIBRATE_DATA_ADDR,1);
 	while(flash_write_single_address(CALIBRATE_DATA_ADDR, (uint32_t *)&cali_data_save, sizeof(cali_data_t)/4) != 0);//写入flash
 	state = CAIL_OFF;
@@ -218,6 +186,26 @@ static void IMUCalibrateControl(void)
 	//校准完陀螺仪reset读取新参数
 	__disable_irq();
 	NVIC_SystemReset();
+}
+
+static void JointCalibrateControl(void)
+{
+    float zero[4];
+
+    if (!ChassisJointCaliGetResult(zero))
+        return;
+
+    memcpy(cali_data_save.joint_zero, zero, sizeof(zero));
+
+    if (cali_data_save.cali_valid_flag == ONLY_IMU || cali_data_save.cali_valid_flag == BOTH_VALID)
+        cali_data_save.cali_valid_flag = BOTH_VALID;
+    else
+        cali_data_save.cali_valid_flag = ONLY_JOINT;
+
+    flash_erase_address(CALIBRATE_DATA_ADDR, 1);
+    while (flash_write_single_address(CALIBRATE_DATA_ADDR, (uint32_t *)&cali_data_save, sizeof(cali_data_t) / 4) != 0);
+	ChassisJointCaliAbort();
+    state = CAIL_OFF;
 }
 
 void CalibrateTask(RC_ctrl_t *cail_rc_data)
@@ -230,11 +218,11 @@ void CalibrateTask(RC_ctrl_t *cail_rc_data)
 		case CAIL_READY:
 			CalibrateReadyControl(cail_rc_data);
 			break;
-		case CAIL_GIMBAL:
-			GimbalCalibrateControl();
-			break;
 		case CAIL_IMU:
 			IMUCalibrateControl();
+			break;
+		case CAIL_JOINT:
+			JointCalibrateControl();
 			break;
 		default:
 			break;

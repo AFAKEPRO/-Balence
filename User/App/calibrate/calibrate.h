@@ -12,25 +12,34 @@ typedef enum
 {
 	CAIL_OFF = 0,
 	CAIL_READY,
-	CAIL_GIMBAL,
 	CAIL_IMU,
+	CAIL_JOINT,
 }  cail_mods;
+
+typedef enum
+{
+	NONE_VOLID = 0,
+	ONLY_IMU,
+	ONLY_JOINT,
+	BOTH_VALID,
+}cali_status_e;
 
 typedef struct
 {
-	uint8_t cali_status;
-	float max_pitch;
-	float min_pitch;
-	float zero_pitch;
-	float zero_yaw;
+	cali_status_e cali_valid_flag;
+
 	float gyro_offset[3];
 	float g_norm;
 	float temp_when_cail;
+
+	float joint_zero[4];
 	
 } cali_data_t;
 
 cali_data_t *CalibrateInit(void);
 cali_data_t *GetCalibrateData(void);
+uint8_t CalibrateJointRequested(void);
+void CalibrateJointCancel(void);
 void CalibrateTask(RC_ctrl_t *cail_rc_data);
 
 #endif

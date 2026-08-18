@@ -20,6 +20,15 @@ typedef struct
     
 }chassis_control_s;
 
+typedef struct 
+{
+    float time;
+    uint8_t active;
+    uint8_t done;
+    float joint_zero[4];
+
+}joint_cali_s;
+
 typedef enum
 {
     ON_GROUND = 0,
@@ -36,5 +45,10 @@ typedef enum
 void ChassisInit(void);
 
 void ChassisTask(void);
+
+//临时添加的校准接口，后续优化
+void ChassisJointCaliStart(void);
+void ChassisJointCaliAbort(void);
+uint8_t ChassisJointCaliGetResult(float joint_zero[4]);
 
 #endif

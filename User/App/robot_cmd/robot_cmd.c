@@ -2,7 +2,6 @@
 #include "robot_def.h"
 #include "robot_cmd.h"
 #include "calibrate.h"
-#include "vision.h"
 // module
 #include "message_center.h"
 #include "remote_control.h"
@@ -30,7 +29,7 @@ Chassis_Upload_Data_s chassis_fetch_data; 	// 从底盘应用接收的反馈信�
 
 
 static Robot_Status_e robot_state; 			// 机器人整体工作状态
-static float yaw_align_angle;				//重新定义变量储存对齐角度，提高可读性，避免对cali_data的直接操作
+//static float yaw_align_angle;				//重新定义变量储存对齐角度，提高可读性，避免对cali_data的直接操作
 
 
 static void RemoteControlSet(void)
@@ -45,7 +44,7 @@ static void RemoteControlSet(void)
     chassis_cmd_send.last_chassis_mode = chassis_cmd_send.chassis_mode;
 
 /*==============================无力检测==============================*/
-	if (switch_is_down(rc_data[TEMP].rc.switch_right)) 				// 右侧开关状态[下],无力
+	if (switch_is_down(rc_data[TEMP].rc.switch_left)) 				// 左侧开关状态[下],机器人停止
 	{
 		robot_state = ROBOT_STOP;                                       
 	}
@@ -81,10 +80,12 @@ static void RemoteControlSet(void)
 		chassis_cmd_send.chassis_yaw_mode = CHASSIS_ROTATE;
     }
 /*==============================校准检测==============================*/
-	if(switch_is_down(rc_data[TEMP].rc.switch_left) && switch_is_down(rc_data[TEMP].rc.switch_right))	//俩侧开关拨下,检测校准条件
-	{
-		CalibrateTask(rc_data);
-	}
+	uint8_t both_switch_down = switch_is_down(rc_data[TEMP].rc.switch_left) && switch_is_down(rc_data[TEMP].rc.switch_right);
+    
+    if (both_switch_down || CalibrateJointRequested())
+    {
+    CalibrateTask(rc_data);
+    }
 }
 
 static void ControlModeChangeTransit(void)
@@ -136,9 +137,15 @@ static void EmergencyHandler(void)
 	if(rc_data->rc_state == 0)
 	{
 		robot_state = ROBOT_STOP;
+        CalibrateJointCancel();
 	}
-    if (robot_state == ROBOT_STOP) // 还需添加重要应用和模块离线的判断
+    if(CalibrateJointRequested())
     {
+        chassis_cmd_send.chassis_mode = CHASSIS_CALI;
+        return;
+    }
+    if (robot_state == ROBOT_STOP) // 还需添加重要应用和模块离线的判断
+    {   
         chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
         LOGERROR("[CMD] emergency stop!");
     }
@@ -155,7 +162,6 @@ void RobotCmdInit(void)
 	rc_data = RemoteControlInit(&huart3);
 	ins_data = GetInsData();
 	calibrate_data = CalibrateInit();
-	yaw_align_angle = calibrate_data->zero_yaw;
 	
 	chassis_cmd_pub = PubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
     chassis_feed_sub = SubRegister("chassis_feed", sizeof(Chassis_Upload_Data_s));

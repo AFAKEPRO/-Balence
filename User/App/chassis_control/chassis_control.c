@@ -11,6 +11,7 @@
 //Bsp
 #include "bsp_dwt.h"
 #include "math.h"
+#include "stdint.h"
 
 #define CalKArray(len,a,b,c)		(a*len*len + b*len + c)
 #define LQR(ptr , k0,k1,k2,k3,k4,k5)                 \
@@ -68,6 +69,7 @@ chassis_control_s state_vector;                			//状态向量
 
 static uint32_t dwt_cnt;
 static float dt;										//时间微分
+static joint_cali_s cali;
 
 static off_ground_flag_e off_ground_flag = ON_GROUND;
 
@@ -223,12 +225,6 @@ void ChassisInit()
 	first_order_filter_init(&leg_pitch_speed_filter[0], 0.002f, leg_pitch_filter_num);
 	first_order_filter_init(&leg_pitch_speed_filter[1], 0.002f, leg_pitch_filter_num);
 
-	//标定电机编码器的零刻度线
-	DMMotorCaliEncoder(joint_lf);
-	DMMotorCaliEncoder(joint_rf);
-	DMMotorCaliEncoder(joint_lb);
-	DMMotorCaliEncoder(joint_rb);
-
 	state_vector.x = state_vector.x_set;
 
 	DWT_GetDeltaT(&dwt_cnt);
@@ -237,6 +233,41 @@ void ChassisInit()
     chassis_pub = PubRegister("chassis_feed", sizeof(Chassis_Upload_Data_s));
 }
 
+
+/*********************关节电机校准*******************/
+
+
+void ChassisJointCaliStart(void)
+{
+    cali.time = 0.0f;
+    cali.active = 1;
+    cali.done = 0;
+}
+
+void ChassisJointCaliAbort(void)
+{
+    cali.time = 0.0f;
+    cali.active = 0;
+    cali.done = 0;
+}
+
+uint8_t ChassisJointCaliGetResult(float joint_zero[4])
+{
+    if (joint_zero == 0 || cali.done == 0)
+    {
+        return 0;
+    }
+
+    joint_zero[0] = cali.joint_zero[0]; // LF
+    joint_zero[1] = cali.joint_zero[1]; // LB
+    joint_zero[2] = cali.joint_zero[2]; // RF
+    joint_zero[3] = cali.joint_zero[3]; // RB
+
+    cali.done = 0;
+    return 1;
+}
+
+/*********************底盘解算部分***********************/
 
 
 /**
@@ -433,13 +464,49 @@ static float CalGravityFF(float leg_len)
  * @brief 计算驱动轮力矩，lqr基础驱动轮叠加yaw转向补偿，在倒地模式下直接用vx
  * 
  */
-static void CalWheelTorque()
+static void SetWheelTorque()
 {	
 	static float ref, measure;
 	
 	switch(chassis_cmd_recv.chassis_mode)
 	{	
 		case CHASSIS_CALI:
+			if (cali.active)
+    		{
+        		cali.time += dt;
+
+        		if (cali.time < CALI_HOLD_TIME)
+        		{
+            		Torque_f[0] =  CALI_TORQUE; // LF
+            		Torque_f[1] = -CALI_TORQUE; // RF
+            		Torque_b[0] =  CALI_TORQUE; // LB
+            		Torque_b[1] = -CALI_TORQUE; // RB
+        		}
+        		else
+        		{
+            		cali.joint_zero[0] = joint_lf->measure.position; // LF
+            		cali.joint_zero[1] = joint_lb->measure.position; // LB
+            		cali.joint_zero[2] = joint_rf->measure.position; // RF
+            		cali.joint_zero[3] = joint_rb->measure.position; // RB
+
+            		cali.active = 0;
+            		cali.done = 1;
+
+            		Torque_f[0] = 0.0f;
+            		Torque_f[1] = 0.0f;
+            		Torque_b[0] = 0.0f;
+            		Torque_b[1] = 0.0f;
+        		}
+    		}
+    		else
+    		{
+        		Torque_f[0] = 0.0f;
+        		Torque_f[1] = 0.0f;
+        		Torque_b[0] = 0.0f;
+        		Torque_b[1] = 0.0f;
+    		}
+    		break;
+			
 		case CHASSIS_ZERO_FORCE:									//直接给驱动轮电机力矩设0
 			T_Wheel_set[0] = 0;
 			T_Wheel_set[1] = 0;
@@ -603,12 +670,53 @@ static void CalVirtualTorque()
  * @todo 考虑是否加入限幅与奇异保护
  * 
  */
-static void SolveVMC()
+static void SolveVMC(void)
+{
+	for(int i=0; i<2; i++)
+	{
+		float a = ang_1[i], b = ang_2[i], c = ang_3[i], d = ang_4[i], angle = ang[i];
+		float F = Virtual_Force[i], Ft = Virtual_Torque[i]/leg_len[i];
+		//一侧腿的前后两个关节电机解算
+		Torque_f[i] = (L2 * arm_cos_f32(a - c + PI/2) * (Ft * arm_cos_f32(angle - d) + F * arm_sin_f32(angle - d)))/(arm_cos_f32(angle - c)*arm_sin_f32(angle - d) - arm_cos_f32(angle - d)*arm_sin_f32(angle - c));
+		Torque_b[i] = -(L2*arm_cos_f32(b - d + PI/2) * (Ft * arm_cos_f32(angle - c) + F * arm_sin_f32(angle - c)))/(arm_cos_f32(angle - c)*arm_sin_f32(angle - d) - arm_cos_f32(angle - d)*arm_sin_f32(angle - c));
+	}
+}
+
+static void SetJointTorque(void)
 {	
 	
 	switch (chassis_cmd_recv.chassis_mode)
 	{
 		case CHASSIS_CALI:
+			if(cali.cali_flag == 1)
+			{	
+				cali.time += dt;
+				if(cali.time < CALI_HOLD_TIME)
+				{
+					Torque_f[0] = CALI_TORQUE;
+					Torque_f[1] = -CALI_TORQUE;
+					Torque_b[0] = CALI_TORQUE;
+					Torque_b[1] = -CALI_TORQUE;
+				}
+				else
+				{
+					cali.joint_zero[0] = joint_lf->measure.position;
+					cali.joint_zero[1] = joint_lb->measure.position;
+					cali.joint_zero[2] = joint_rf->measure.position;
+					cali.joint_zero[3] = joint_rb->measure.position;
+					cali.cali_flag = 0;
+					cali.time = 0;
+				}
+			}
+			else
+			{
+				Torque_f[0] = 0;
+				Torque_f[1] = 0;
+				Torque_b[0] = 0;
+				Torque_b[1] = 0;
+			}
+			break;
+
 		case CHASSIS_DOWN:
 		case CHASSIS_ZERO_FORCE:
 			Torque_f[0] = 0;
@@ -620,14 +728,7 @@ static void SolveVMC()
 		case CHASSIS_INIT:
 		case CHASSIS_JUMP:
 		case CHASSIS_BALANCE:
-			for(int i=0; i<2; i++)
-				{
-					float a = ang_1[i], b = ang_2[i], c = ang_3[i], d = ang_4[i], angle = ang[i];
-					float F = Virtual_Force[i], Ft = Virtual_Torque[i]/leg_len[i];
-					//一侧腿的前后两个关节电机解算
-					Torque_f[i] = (L2 * arm_cos_f32(a - c + PI/2) * (Ft * arm_cos_f32(angle - d) + F * arm_sin_f32(angle - d)))/(arm_cos_f32(angle - c)*arm_sin_f32(angle - d) - arm_cos_f32(angle - d)*arm_sin_f32(angle - c));
-					Torque_b[i] = -(L2*arm_cos_f32(b - d + PI/2) * (Ft * arm_cos_f32(angle - c) + F * arm_sin_f32(angle - c)))/(arm_cos_f32(angle - c)*arm_sin_f32(angle - d) - arm_cos_f32(angle - d)*arm_sin_f32(angle - c));
-				}
+			SolveVMC();
 			break;
 		
 		default:
@@ -705,10 +806,10 @@ void ChassisTask(void)
 	SolveFiveRod();
 	UpdataStateVector();
 	CalLQR();
-	CalWheelTorque();
+	SetWheelTorque();
 	CalVirtualForce();
 	CalVirtualTorque();
-	SolveVMC();
+	SetJointTorque();
 	SolveRealWrench();
 
 	//获取底盘反馈值（给后续双板通信用）
