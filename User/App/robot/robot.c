@@ -11,10 +11,7 @@
 #include "buzzer.h"
 
 #include "robot_cmd.h"
-#include "gimbal.h"
-#include "shoot.h"
-#include "chassis.h"
-#include "vision.h"
+#include "chassis_control.h"
 #include "cmd_send.h"
 
 //static BuzzzerInstance *imu_cail_buzzer;

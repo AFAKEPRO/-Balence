@@ -21,6 +21,8 @@
 RC_ctrl_t *rc_data;              			// 遥控器数据,初始化时返回
 attitude_t *ins_data;
 cali_data_t *calibrate_data;
+RC_ctrl_t RC_DEBUG;
+float debug_flag = 0;
 
 static Publisher_t *chassis_cmd_pub;   		// 底盘控制消息发布者
 static Subscriber_t *chassis_feed_sub; 		// 底盘反馈信息订阅者
@@ -34,12 +36,13 @@ static Robot_Status_e robot_state; 			// 机器人整体工作状态
 
 static void RemoteControlSet(void)
 {
-
+	
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-	chassis_cmd_send.leg_len_set = 0.001f  * (float)rc_data[TEMP].rc.rocker_r_;     //右摇杆水平方向
-	chassis_cmd_send.x_set += 0.5f * (float)rc_data[TEMP].rc.rocker_l1;             //左摇杆竖直方向，注意这是叠加的
-    chassis_cmd_send.vx_set = 0.05f * (float)rc_data[TEMP].rc.rocker_l1;            //左摇杆竖直方向
-    chassis_cmd_send.chassis_yaw_speed_set = 0.5f * (float)rc_data[TEMP].rc.rocker_l_;           //左摇杆水平方向，注意这是叠加的
+	chassis_cmd_send.leg_len_set += 0.0001f  * (float)rc_data[TEMP].rc.rocker_r_;     //右摇杆水平方向
+	chassis_cmd_send.leg_len_set = fp32_constrain(chassis_cmd_send.leg_len_set, LEG_LEN_MIN, LEG_LEN_MAX);
+	chassis_cmd_send.x_set += 0.0001f * (float)rc_data[TEMP].rc.rocker_l1;             //左摇杆竖直方向，注意这是叠加的
+    chassis_cmd_send.vx_set = 0.00005f * (float)rc_data[TEMP].rc.rocker_l1;            //左摇杆竖直方向
+    chassis_cmd_send.chassis_yaw_speed_set = 0.001f * (float)rc_data[TEMP].rc.rocker_l_;           //左摇杆水平方向，注意这是叠加的
 	
     chassis_cmd_send.last_chassis_mode = chassis_cmd_send.chassis_mode;
 
@@ -94,21 +97,21 @@ static void ControlModeChangeTransit(void)
     if(chassis_cmd_send.last_chassis_mode != CHASSIS_ZERO_FORCE && chassis_cmd_send.chassis_mode ==CHASSIS_ZERO_FORCE)
     {
         chassis_cmd_send.x_set = chassis_fetch_data.x;
-        chassis_cmd_send.chassis_yaw_speed_set = chassis_fetch_data.chassis_yaw;
+        chassis_cmd_send.chassis_yaw_speed_set = chassis_fetch_data.chassis_yaw_speed;
         chassis_cmd_send.leg_len_set = 0.065;
     }
     //切入倒地模式
     if(chassis_cmd_send.last_chassis_mode != CHASSIS_DOWN && chassis_cmd_send.chassis_mode ==CHASSIS_DOWN)
     {
         chassis_cmd_send.x_set = chassis_fetch_data.x;
-        chassis_cmd_send.chassis_yaw_speed_set = chassis_fetch_data.chassis_yaw;
+        chassis_cmd_send.chassis_yaw_speed_set = chassis_fetch_data.chassis_yaw_speed;
         chassis_cmd_send.leg_len_set = 0.065;
     }
     //切入初始化模式
-    if(chassis_cmd_send.last_chassis_mode != CHASSIS_DOWN && chassis_cmd_send.chassis_mode ==CHASSIS_DOWN)
+    if(chassis_cmd_send.last_chassis_mode != CHASSIS_INIT && chassis_cmd_send.chassis_mode ==CHASSIS_INIT)
     {
         chassis_cmd_send.x_set = chassis_fetch_data.x;
-        chassis_cmd_send.chassis_yaw_speed_set = chassis_fetch_data.chassis_yaw;
+        chassis_cmd_send.chassis_yaw_speed_set = chassis_fetch_data.chassis_yaw_speed;
         chassis_cmd_send.leg_len_set = INIT_LEG_LEN;
         chassis_cmd_send.leg_pid_Iout_flag = IOUT_REMOVE; 
         chassis_cmd_send.roll_pid_Iout_flag = IOUT_REMOVE;
@@ -117,8 +120,8 @@ static void ControlModeChangeTransit(void)
     if(chassis_cmd_send.last_chassis_mode != CHASSIS_BALANCE && chassis_cmd_send.chassis_mode ==CHASSIS_BALANCE)
     {
         chassis_cmd_send.x_set = chassis_fetch_data.x;
-        chassis_cmd_send.chassis_yaw_speed_set = chassis_fetch_data.chassis_yaw;
-        chassis_cmd_send.leg_len_set = 0.065;
+        chassis_cmd_send.chassis_yaw_speed_set = chassis_fetch_data.chassis_yaw_speed;
+        chassis_cmd_send.leg_len_set = INIT_LEG_LEN;
         chassis_cmd_send.leg_pid_Iout_flag = IOUT_REMOVE; 
         chassis_cmd_send.roll_pid_Iout_flag = IOUT_REMOVE;
     }
@@ -160,9 +163,16 @@ static void EmergencyHandler(void)
 void RobotCmdInit(void)
 {
 	rc_data = RemoteControlInit(&huart3);
+	RC_DEBUG = *rc_data;
+	
 	ins_data = GetInsData();
 	calibrate_data = CalibrateInit();
-	
+
+    for(int i=0; i<4; i++)
+    {
+        chassis_cmd_send.joint_zero[i] = calibrate_data->joint_zero[i];
+    }
+
 	chassis_cmd_pub = PubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
     chassis_feed_sub = SubRegister("chassis_feed", sizeof(Chassis_Upload_Data_s));
 
@@ -175,7 +185,8 @@ void RobotCmdInit(void)
 
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
 void RobotCMDTask(void)
-{
+{	
+	debug_flag = 1;
    // BMI088Acquire(bmi088_test,&bmi088_data) ;
     // 从其他应用获取回传数据
     SubGetMessage(chassis_feed_sub, &chassis_fetch_data);

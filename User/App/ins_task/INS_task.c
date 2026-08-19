@@ -37,7 +37,6 @@
 
 #include "bsp_usart1.h"
 
-#include "vision.h"
 
 #define IMU_temp_PWM(pwm)  imu_pwm_set(pwm)                    //pwm给定
 
@@ -137,7 +136,6 @@ void INS_task(void)
 		INS.Yaw=RadFormat((atan2(2*(INS.q[0]*INS.q[3]+INS.q[1]*INS.q[2]),(1-2*(INS.q[2]*INS.q[2]+INS.q[3]*INS.q[3])))));
 		INS.Roll=(atan2(2*(INS.q[0]*INS.q[1]+INS.q[2]*INS.q[3]),(1-2*(INS.q[1]*INS.q[1]+INS.q[2]*INS.q[2]))));
 		
-		VisionTask(RadToDeg(INS.Roll),-RadToDeg(INS.Pitch),RadToDeg(INS.Yaw));
 	}
 	
 	if ((count % 2) == 0)

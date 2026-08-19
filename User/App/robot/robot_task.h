@@ -7,11 +7,9 @@
 #include "cmsis_os.h"
 
 #include "robot.h"
-#include "gimbal.h"
 #include "daemon.h"
 #include "motor_task.h"
 #include "INS_task.h"
-#include "vision.h"
 
 #include "buzzer.h"
 

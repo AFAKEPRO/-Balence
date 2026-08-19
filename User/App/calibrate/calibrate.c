@@ -35,12 +35,21 @@ cali_data_t *CalibrateInit(void)
 	
 	//读取flash
 	flash_read(CALIBRATE_DATA_ADDR,(uint32_t *)&cali_data_save,sizeof(cali_data_t)/4);
-	if(cali_data_save.cali_valid_flag != BOTH_VALID && cali_data_save.cali_valid_flag != ONLY_IMU)//若无校准数据则先赋值备用数据,备用数据在 [robo_def.h]
-	{
+	if(cali_data_save.cali_valid_flag == NONE_VOLID)//若无校准数据则先赋值备用数据,备用数据在 [robo_def.h]
+	{	
+		cali_data_save.joint_zero[0] = RESERVE_JOINT_ZERO_0;
+		cali_data_save.joint_zero[1] = RESERVE_JOINT_ZERO_1;
+		cali_data_save.joint_zero[2] = RESERVE_JOINT_ZERO_2;
+		cali_data_save.joint_zero[3] = RESERVE_JOINT_ZERO_3;
 		return &cali_data_save;
 	}
-	else
-	{
+	else if(cali_data_save.cali_valid_flag == ONLY_IMU)
+	{	
+		cali_data_save.joint_zero[0] = RESERVE_JOINT_ZERO_0;
+		cali_data_save.joint_zero[1] = RESERVE_JOINT_ZERO_1;
+		cali_data_save.joint_zero[2] = RESERVE_JOINT_ZERO_2;
+		cali_data_save.joint_zero[3] = RESERVE_JOINT_ZERO_3;
+
 		BMI088.GyroOffset[0] = cali_data_save.gyro_offset[0];
         BMI088.GyroOffset[1] = cali_data_save.gyro_offset[1];
         BMI088.GyroOffset[2] = cali_data_save.gyro_offset[2];
@@ -49,6 +58,30 @@ cali_data_t *CalibrateInit(void)
         BMI088.TempWhenCali = cali_data_save.temp_when_cail;
 		
 		return &cali_data_save;//有数据则返回数据
+	}
+	else if(cali_data_save.cali_valid_flag == ONLY_JOINT)
+	{	
+		return  &cali_data_save;
+	}
+	else if(cali_data_save.cali_valid_flag == BOTH_VALID)
+	{	
+
+		BMI088.GyroOffset[0] = cali_data_save.gyro_offset[0];
+        BMI088.GyroOffset[1] = cali_data_save.gyro_offset[1];
+        BMI088.GyroOffset[2] = cali_data_save.gyro_offset[2];
+        BMI088.gNorm = cali_data_save.g_norm;
+        BMI088.AccelScale = 9.81f / cali_data_save.g_norm;
+        BMI088.TempWhenCali = cali_data_save.temp_when_cail;
+		
+		return &cali_data_save;
+	}
+	else
+	{	
+		cali_data_save.joint_zero[0] = RESERVE_JOINT_ZERO_0;
+		cali_data_save.joint_zero[1] = RESERVE_JOINT_ZERO_1;
+		cali_data_save.joint_zero[2] = RESERVE_JOINT_ZERO_2;
+		cali_data_save.joint_zero[3] = RESERVE_JOINT_ZERO_3;
+		return &cali_data_save;
 	}
 }
 

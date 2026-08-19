@@ -1,3 +1,34 @@
+/**
+  ****************************(C) COPYRIGHT 2019 DJI****************************
+  * @file       chassis_control.c/h
+  * @brief      轮腿底盘控制实现函数，包括底盘初始化，关节电机校准，底盘解算和控制
+  * 			控制链路：1.计算关节电机的相对角度
+  * 					 2.五连杆解算，得到虚拟腿长和虚拟腿角
+  * 					 3.更新空间状态向量
+  * 					 4.计算增益矩阵，根据LQR计算出基础的控制输出矩阵（基础轮力矩和基础髋力矩）
+  * 					 5.根据不同状态机，计算驱动轮的输出力矩
+  * 					 6.根据不同状态机，计算虚拟腿力
+  * 					 7.根据不同状态机，计算虚拟髋关节合力矩
+  * 					 8.根据不同状态机，计算四个关节电机的输出力矩（集成VMC）
+  *                      9.根据关节电机实际输出力矩，计算虚拟腿力和力矩
+  * @todo		1.确定机体机械常数，机械限位，电机安装方向，imu方向。重新敲定pid参数，重力补偿的数值和VMC限幅
+  *             2.增加跳跃状态机的控制链路
+  * 			3.小陀螺
+  * 			4.增加离地检测，计算腿长速度和加速度			
+  * @note       
+  * @history
+  *  Version    Date            Author          Modification
+  *  V1.0.0     Aug-19-2026     32BIT             1. 完成
+  *
+  @verbatim
+  ==============================================================================
+
+  ==============================================================================
+  @endverbatim
+  ****************************(C) COPYRIGHT 2019 DJI****************************
+  */
+
+
 //App
 #include "chassis_control.h"
 #include "robot_def.h"
@@ -72,6 +103,7 @@ static float dt;										//时间微分
 static joint_cali_s cali;
 
 static off_ground_flag_e off_ground_flag = ON_GROUND;
+float chassis_debug = 0;
 
 
 void ChassisInit()
@@ -108,18 +140,22 @@ void ChassisInit()
 	};
 
 	joint_motor_config.can_init_config.tx_id = 1;
+	joint_motor_config.can_init_config.rx_id = 1;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_lf = DMMotorInit(&joint_motor_config);
 
 	joint_motor_config.can_init_config.tx_id = 2;
+	joint_motor_config.can_init_config.rx_id = 2;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_rf = DMMotorInit(&joint_motor_config);
 
 	joint_motor_config.can_init_config.tx_id = 3;
+	joint_motor_config.can_init_config.rx_id = 3;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_lb = DMMotorInit(&joint_motor_config);
 
 	joint_motor_config.can_init_config.tx_id = 4;
+	joint_motor_config.can_init_config.rx_id = 4;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_rb = DMMotorInit(&joint_motor_config);
 
@@ -231,6 +267,8 @@ void ChassisInit()
 
 	chassis_sub = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
     chassis_pub = PubRegister("chassis_feed", sizeof(Chassis_Upload_Data_s));
+	
+	chassis_debug = 1;
 }
 
 
@@ -259,8 +297,8 @@ uint8_t ChassisJointCaliGetResult(float joint_zero[4])
     }
 
     joint_zero[0] = cali.joint_zero[0]; // LF
-    joint_zero[1] = cali.joint_zero[1]; // LB
-    joint_zero[2] = cali.joint_zero[2]; // RF
+    joint_zero[1] = cali.joint_zero[1]; // RF
+    joint_zero[2] = cali.joint_zero[2]; // LB
     joint_zero[3] = cali.joint_zero[3]; // RB
 
     cali.done = 0;
@@ -276,10 +314,10 @@ uint8_t ChassisJointCaliGetResult(float joint_zero[4])
  */
 static void CalRealtiveAngle()
 {
-	ang_1[0] = joint_lf->measure.position + JOINT_LF_INIT_ANGLE;
-	ang_1[1] = joint_rf->measure.position + JOINT_RF_INIT_ANGLE;
-	ang_2[0] = joint_lb->measure.position + JOINT_LB_INIT_ANGLE;
-	ang_2[1] = joint_rb->measure.position + JOINT_RB_INIT_ANGLE;
+	ang_1[0] = joint_lf->measure.position - chassis_cmd_recv.joint_zero[0] + JOINT_LF_INIT_ANGLE;
+	ang_1[1] = joint_rf->measure.position - chassis_cmd_recv.joint_zero[1] + JOINT_RF_INIT_ANGLE;
+	ang_2[0] = joint_lb->measure.position - chassis_cmd_recv.joint_zero[2] + JOINT_LB_INIT_ANGLE;
+	ang_2[1] = joint_rb->measure.position - chassis_cmd_recv.joint_zero[3] + JOINT_RB_INIT_ANGLE;
 }
 
 
@@ -434,8 +472,8 @@ static void CalLQR()
 
 	for(int i = 0;i<2;i++)
 	{
-		T[i] = 0.5*LQR(&state_vector, K[0], K[1], K[2], K[3], K[4], K[5]);
-		Tp[i] = 0.5*LQR(&state_vector, K[6], K[7], K[8], K[9], K[10], K[11]) * 3.0f;
+		T[i] = 0.5f*LQR(&state_vector, K[0], K[1], K[2], K[3], K[4], K[5]);
+		Tp[i] = 0.5f*LQR(&state_vector, K[6], K[7], K[8], K[9], K[10], K[11]) * 3.0f;
 	}
 }
 
@@ -471,42 +509,6 @@ static void SetWheelTorque()
 	switch(chassis_cmd_recv.chassis_mode)
 	{	
 		case CHASSIS_CALI:
-			if (cali.active)
-    		{
-        		cali.time += dt;
-
-        		if (cali.time < CALI_HOLD_TIME)
-        		{
-            		Torque_f[0] =  CALI_TORQUE; // LF
-            		Torque_f[1] = -CALI_TORQUE; // RF
-            		Torque_b[0] =  CALI_TORQUE; // LB
-            		Torque_b[1] = -CALI_TORQUE; // RB
-        		}
-        		else
-        		{
-            		cali.joint_zero[0] = joint_lf->measure.position; // LF
-            		cali.joint_zero[1] = joint_lb->measure.position; // LB
-            		cali.joint_zero[2] = joint_rf->measure.position; // RF
-            		cali.joint_zero[3] = joint_rb->measure.position; // RB
-
-            		cali.active = 0;
-            		cali.done = 1;
-
-            		Torque_f[0] = 0.0f;
-            		Torque_f[1] = 0.0f;
-            		Torque_b[0] = 0.0f;
-            		Torque_b[1] = 0.0f;
-        		}
-    		}
-    		else
-    		{
-        		Torque_f[0] = 0.0f;
-        		Torque_f[1] = 0.0f;
-        		Torque_b[0] = 0.0f;
-        		Torque_b[1] = 0.0f;
-    		}
-    		break;
-			
 		case CHASSIS_ZERO_FORCE:									//直接给驱动轮电机力矩设0
 			T_Wheel_set[0] = 0;
 			T_Wheel_set[1] = 0;
@@ -561,8 +563,8 @@ static void SetWheelTorque()
 			break;	
 	}
 
-	DJIMotorSetRef(wheel_l, T_Wheel_set[0]);
-	DJIMotorSetRef(wheel_r, T_Wheel_set[1]);
+	DJIMotorSetRef(wheel_l, T_Wheel_set[0] * M3508_TORQUE_2_CURRENT);
+	DJIMotorSetRef(wheel_r, T_Wheel_set[1] * M3508_TORQUE_2_CURRENT);
 }
 
 /**
@@ -572,22 +574,22 @@ static void SetWheelTorque()
 static void CalVirtualForce()
 {	
 	static float measure, ref;
-
+	
+	//切入平衡模式和初始化模式的时候要清空Iout
+	if(chassis_cmd_recv.leg_pid_Iout_flag == IOUT_REMOVE)
+	{
+		leg_pid[0].Iout = 0;
+		leg_pid[1].Iout = 0;
+		chassis_cmd_recv.leg_pid_Iout_flag = IOUT_RESERVE;
+	}
+	if(chassis_cmd_recv.roll_pid_Iout_flag == IOUT_REMOVE)
+	{
+		roll_pid.Iout = 0;
+		chassis_cmd_recv.roll_pid_Iout_flag = IOUT_RESERVE;
+	}
+		
 	switch(chassis_cmd_recv.chassis_mode)
 	{	
-		//切入平衡模式和初始化模式的时候要清空Iout
-		if(chassis_cmd_recv.leg_pid_Iout_flag == IOUT_REMOVE)
-		{
-			leg_pid[0].Iout = 0;
-			leg_pid[1].Iout = 0;
-			chassis_cmd_recv.leg_pid_Iout_flag = IOUT_RESERVE;
-		}
-		if(chassis_cmd_recv.roll_pid_Iout_flag == IOUT_REMOVE)
-		{
-			roll_pid.Iout = 0;
-			chassis_cmd_recv.roll_pid_Iout_flag = IOUT_RESERVE;
-		}
-
 		case CHASSIS_CALI:						//CALI和DOWN模式下直接指定四个关节电机的力矩，用不到虚拟腿力，所以这里直接把虚拟腿力设定成0
 		case CHASSIS_DOWN:
 		case CHASSIS_ZERO_FORCE:
@@ -688,32 +690,39 @@ static void SetJointTorque(void)
 	switch (chassis_cmd_recv.chassis_mode)
 	{
 		case CHASSIS_CALI:
-			if(cali.cali_flag == 1)
-			{	
+			if (cali.active)
+			{
 				cali.time += dt;
-				if(cali.time < CALI_HOLD_TIME)
+
+				if (cali.time < CALI_HOLD_TIME)
 				{
-					Torque_f[0] = CALI_TORQUE;
-					Torque_f[1] = -CALI_TORQUE;
-					Torque_b[0] = CALI_TORQUE;
-					Torque_b[1] = -CALI_TORQUE;
+					Torque_f[0] =  CALI_TORQUE; 
+					Torque_f[1] = -CALI_TORQUE; 
+					Torque_b[0] =  CALI_TORQUE; 
+					Torque_b[1] = -CALI_TORQUE; 
 				}
 				else
 				{
-					cali.joint_zero[0] = joint_lf->measure.position;
-					cali.joint_zero[1] = joint_lb->measure.position;
-					cali.joint_zero[2] = joint_rf->measure.position;
-					cali.joint_zero[3] = joint_rb->measure.position;
-					cali.cali_flag = 0;
-					cali.time = 0;
+					cali.joint_zero[0] = joint_lf->measure.position; 
+					cali.joint_zero[1] = joint_rf->measure.position; 
+					cali.joint_zero[2] = joint_lb->measure.position; 
+					cali.joint_zero[3] = joint_rb->measure.position; 
+
+					cali.active = 0;
+					cali.done = 1;
+
+					Torque_f[0] = 0.0f;
+					Torque_f[1] = 0.0f;
+					Torque_b[0] = 0.0f;
+					Torque_b[1] = 0.0f;
 				}
-			}
+			}	
 			else
 			{
-				Torque_f[0] = 0;
-				Torque_f[1] = 0;
-				Torque_b[0] = 0;
-				Torque_b[1] = 0;
+				Torque_f[0] = 0.0f;
+				Torque_f[1] = 0.0f;
+				Torque_b[0] = 0.0f;
+				Torque_b[1] = 0.0f;
 			}
 			break;
 
@@ -738,7 +747,13 @@ static void SetJointTorque(void)
 			Torque_b[1] = 0;
 			break;
 	}
-
+	
+	//对关节电机力矩进行限幅
+	Torque_f[0] = fp32_constrain(Torque_f[0], DM_T_MIN, DM_T_MAX);
+	Torque_f[1] = fp32_constrain(Torque_f[1], DM_T_MIN, DM_T_MAX);
+	Torque_b[0] = fp32_constrain(Torque_b[0], DM_T_MIN, DM_T_MAX);
+	Torque_b[1] = fp32_constrain(Torque_b[1], DM_T_MIN, DM_T_MAX);
+	
 	DMMotorSetRef(joint_lf, Torque_f[0]);
 	DMMotorSetRef(joint_rf, Torque_f[1]);
 	DMMotorSetRef(joint_lb, Torque_b[0]);
@@ -797,10 +812,6 @@ void ChassisTask(void)
     }
 
     // 根据控制模式设定旋转速度
-    switch (chassis_cmd_recv.chassis_mode)
-    {
-		break;
-    }
 
 	CalRealtiveAngle();
 	SolveFiveRod();
@@ -817,6 +828,7 @@ void ChassisTask(void)
 	chassis_feedback_data.leg_len[0] = leg_len[0];
 	chassis_feedback_data.leg_len[1] = leg_len[1];
 	chassis_feedback_data.chassis_yaw = chassis_IMU_data->Yaw;
+	chassis_feedback_data.chassis_yaw_speed = chassis_IMU_data->Gyro[2];
 	chassis_feedback_data.vx = vx;
 	chassis_feedback_data.x = state_vector.x;
 
