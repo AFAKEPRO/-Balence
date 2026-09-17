@@ -38,10 +38,11 @@ static void RemoteControlSet(void)
 {
 	
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-	chassis_cmd_send.leg_len_set += 0.0001f  * (float)rc_data[TEMP].rc.rocker_r_;     //右摇杆水平方向
-	chassis_cmd_send.leg_len_set = fp32_constrain(chassis_cmd_send.leg_len_set, LEG_LEN_MIN, LEG_LEN_MAX);
-	chassis_cmd_send.x_set += 0.0001f * (float)rc_data[TEMP].rc.rocker_l1;             //左摇杆竖直方向，注意这是叠加的
-    chassis_cmd_send.vx_set = 0.00005f * (float)rc_data[TEMP].rc.rocker_l1;            //左摇杆竖直方向
+	  chassis_cmd_send.leg_len_set += 0.0001f  * (float)rc_data[TEMP].rc.rocker_r_;     //右摇杆水平方向 腿长
+	  chassis_cmd_send.leg_len_set = fp32_constrain(chassis_cmd_send.leg_len_set, LEG_LEN_MIN, LEG_LEN_MAX);
+	  chassis_cmd_send.x_set += -0.0001f * (float)rc_data[TEMP].rc.rocker_r1;           // 右摇杆竖直 → 前后（叠加）
+    chassis_cmd_send.x_set = fp32_constrain(chassis_cmd_send.x_set, -X_MAX, X_MAX);   
+    chassis_cmd_send.vx_set = -0.00005f * (float)rc_data[TEMP].rc.rocker_r1;          // 右摇杆竖直 → 前后速度
     chassis_cmd_send.chassis_yaw_speed_set = 0.001f * (float)rc_data[TEMP].rc.rocker_l_;           //左摇杆水平方向，注意这是叠加的
 	
     chassis_cmd_send.last_chassis_mode = chassis_cmd_send.chassis_mode;
@@ -68,6 +69,18 @@ static void RemoteControlSet(void)
     {
         chassis_cmd_send.chassis_mode = CHASSIS_DOWN;
     }
+/*==============================跳跃请求==============================*/
+    /* 必须放在上面拨杆定档之后,否则会被 switch_right 覆盖。
+       ⚠ 暂未启用:CHASSIS_JUMP 目前只是空壳 —— chassis_control.c 的 CalVirtualForce() 里
+         case CHASSIS_JUMP: 是空的(Virtual_Force 会保留上一模式的旧值),其余几处与 CHASSIS_BALANCE
+         走同一支路,ControlModeChangeTransit() 也没有 JUMP 分支。
+         现在打开 = 用上一拍的腿力输出,可能突然蹬腿。等跳跃状态机迁移完再解开。
+    if (switch_is_up(rc_data[TEMP].rc.switch_jump)                      // SA 打上
+        && chassis_cmd_send.chassis_mode == CHASSIS_BALANCE)            // 且当前是平衡模式
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_JUMP;
+    }
+*/
 /*==============================左拨杆==============================*/
     if (switch_is_up(rc_data[TEMP].rc.switch_left)) 				    // 左侧开关状态[上],底盘跟随云台
     {
@@ -162,7 +175,7 @@ static void EmergencyHandler(void)
 
 void RobotCmdInit(void)
 {
-	rc_data = RemoteControlInit(&huart3);
+	rc_data = RemoteControlInit(); // 遥控改由 A板 经 CAN(hcan2) 转发,不再占用本板串口
 	RC_DEBUG = *rc_data;
 	
 	ins_data = GetInsData();

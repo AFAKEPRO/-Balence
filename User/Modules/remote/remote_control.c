@@ -1,6 +1,6 @@
 #include "remote_control.h"
 #include "string.h"
-#include "bsp_usart.h"
+#include "bsp_can.h"
 #include "stdlib.h"
 #include "daemon.h"
 #include "bsp_log.h"
@@ -9,14 +9,19 @@
 
 #define REMOTE_CONTROL_FRAME_SIZE 18u // 遥控器接收的buffer大小
 
+/* 2026-09-12：遥控改由 A板 经 CAN 转发（见 .h 注释），本板在 hcan2 上收三帧。
+   A板 侧组帧见 0standard/user/APP/remote_control/remote_control.c 的 RC_ctrl_push_to_chassis_can() */
+#define RC_CAN_TAIL_ID 0x162u // 尾部帧: data[0..1]=18B[16..17], data[2]=来源, data[3]=跳跃, data[4]=发弹
+
 // 遥控器数据
 RC_ctrl_t rc_ctrl[2];     //[0]:当前数据TEMP,[1]:上一次的数据LAST.用于按键持续按下和切换的判断
 gimbal_referee_info_t *rc_referee_recv;
 static uint8_t rc_init_flag = 0; // 遥控器初始化标志位
 
-// 遥控器拥有的串口实例,因为遥控器是单例,所以这里只有一个,就不封装了
- USARTInstance *rc_usart_instance;
 static DaemonInstance *rc_daemon_instance;
+// 拼帧缓存: 0x160 填 [0..7] → 0x161 填 [8..15] → 0x162 补尾部并触发解析
+static uint8_t rc_canbuf[REMOTE_CONTROL_FRAME_SIZE];
+static uint8_t rc_can_seen = 0;  // 0=帧头未到, 1=已收0x160, 3=已收0x160+0x161
 
 /**
  * @brief 矫正遥控器摇杆的值,超过660或者小于-660的值都认为是无效值,置0
@@ -90,14 +95,49 @@ static void sbus_to_rc(const uint8_t *sbus_buf)
 }
 
 /**
- * @brief 对sbus_to_rc的简单封装,用于注册到bsp_usart的回调函数中
+ * @brief 注册到 bsp_can 的回调(0x160/0x161/0x162 共用一个,靠 rx_id 分派)
  *
+ * @note 本回调在 CAN 中断上下文执行(bsp_can 的 FIFOx 回调直接调用),保持短小。
+ *       三帧的到达顺序由 CAN 外设 FIFO 保证:三个实例的 tx_id 都填 0(偶数) →
+ *       bsp_can 按 tx_id 奇偶分配 FIFO,三帧同进 FIFO1,故顺序与 A板 发送顺序一致。
  */
-static void RemoteControlRxCallback()
+static void RCCANRxCallback(CANInstance *ins)
 {
-    DaemonReload(rc_daemon_instance);         // 先喂狗
-    sbus_to_rc(rc_usart_instance->recv_buff); // 进行协议解析
-	rc_ctrl->rc_state = 1;
+    if (ins->rx_len != 8u) // A板 Send_remote 固定 DLC=8,长度不符直接丢,避免拼进残留字节
+        return;
+
+    switch (ins->rx_id)
+    {
+    case 0x160u: // 18B 的 byte[0..7]
+        memcpy(&rc_canbuf[0], ins->rx_buff, 8);
+        rc_can_seen = 1u;
+        break;
+
+    case 0x161u: // 18B 的 byte[8..15]
+        if (rc_can_seen != 1u)
+            break; // 乱序或丢帧,本帧丢弃(下一个 0x160 会重置状态机)
+        memcpy(&rc_canbuf[8], ins->rx_buff, 8);
+        rc_can_seen = 3u;
+        break;
+
+    case RC_CAN_TAIL_ID:
+        if (rc_can_seen != 3u)
+            break;
+        rc_canbuf[16] = ins->rx_buff[0];
+        rc_canbuf[17] = ins->rx_buff[1];
+        /* 扩展字段必须在 sbus_to_rc 之前写进 TEMP:该函数末尾有 TEMP→LAST 的整结构
+           memcpy,这样 LAST 也能拿到上一次的值,switch_jump 才做得了上升沿判断 */
+        rc_ctrl[TEMP].rc.switch_jump = (uint8_t)(ins->rx_buff[3] & 0x03u);
+        rc_ctrl[TEMP].rc.switch_fire = (uint8_t)(ins->rx_buff[4] & 0x03u);
+        sbus_to_rc(rc_canbuf);   // 协议解析(18B 布局与接收机直连同构,零改动)
+        rc_ctrl->rc_state = 1;   // 遥控正常
+        DaemonReload(rc_daemon_instance);
+        rc_can_seen = 0u;
+        break;
+
+    default:
+        break;
+    }
 }
 
 /**
@@ -110,25 +150,41 @@ static void RCLostCallback(void *id)
 	{
 		uint8_t temp[sizeof(RC_ctrl_t)] = {0};
 		memcpy(&temp[6], &rc_referee_recv->remote_data, 10);
+		/* switch_jump/switch_fire 不在 18B 里,sbus_to_rc 不会写它们,裁判兜底时必须显式归 DOWN,
+		   否则会残留上一帧 SBUS 的值(掉线瞬间若 SA 停在跳跃位,就会一直请求跳跃) */
+		rc_ctrl[TEMP].rc.switch_jump = RC_SW_DOWN;
+		rc_ctrl[TEMP].rc.switch_fire = RC_SW_DOWN;
 		sbus_to_rc((const uint8_t*)temp);
 		rc_ctrl->rc_state = 2;
 	}
 	else
 	{
-		memset(rc_ctrl, 0, sizeof(rc_ctrl)); // 清空遥控器数据
-		USARTServiceInit(rc_usart_instance); // 尝试重新启动接收
+		memset(rc_ctrl, 0, sizeof(rc_ctrl)); // 清空遥控器数据(含两个扩展字段)
+		// 注:接收已移到 CAN,过滤器常开,不需要像串口那样在这里重启接收
 		rc_ctrl->rc_state = 0;
 		LOGWARNING("[rc] remote control lost");
 	}
 }
 
-RC_ctrl_t *RemoteControlInit(UART_HandleTypeDef *rc_usart_handle)
+RC_ctrl_t *RemoteControlInit(void)
 {
-    USART_Init_Config_s conf;
-    conf.module_callback = RemoteControlRxCallback;
-    conf.usart_handle = rc_usart_handle;
-    conf.recv_buff_size = REMOTE_CONTROL_FRAME_SIZE;
-    rc_usart_instance = USARTRegister(&conf);
+    /* 三个 CAN 实例共用同一个回调,靠 rx_id 分派。
+       tx_id 三个都必须填 0(偶数):bsp_can 按 tx_id 的奇偶决定进 FIFO0 还是 FIFO1,
+       三帧同进 FIFO1 才能保证 0x160→0x161→0x162 的到达顺序。 */
+    CAN_Init_Config_s can_conf = {
+        .can_handle = &hcan2,
+        .tx_id = 0, // 只收不发;填 0 是为了让三帧落在同一个 FIFO(见上)
+        .rx_id = 0x160,
+        .can_module_callback = RCCANRxCallback,
+        .id = NULL,
+    };
+    CANRegister(&can_conf); // 0x160: 18B 的 byte[0..7]
+
+    can_conf.rx_id = 0x161;
+    CANRegister(&can_conf); // 0x161: 18B 的 byte[8..15]
+
+    can_conf.rx_id = RC_CAN_TAIL_ID;
+    CANRegister(&can_conf); // 0x162: 尾部 + 跳跃/发弹扩展字段
 
     // 进行守护进程的注册,用于定时检查遥控器是否正常工作
     Daemon_Init_Config_s daemon_conf = {

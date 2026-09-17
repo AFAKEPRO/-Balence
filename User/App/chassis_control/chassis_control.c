@@ -33,6 +33,7 @@
 #include "chassis_control.h"
 #include "robot_def.h"
 #include "INS_task.h"
+#include "gimbal.h"
 //Modules
 #include "message_center.h"
 #include "dji_motor.h"
@@ -54,7 +55,6 @@
 	- (k4)*(ptr)->chassis_pitch                   \
 	- (k5)*(ptr)->chassis_pitch_speed                  \
 ) 
-
 /* 底盘应用包含的模块和信息存储,底盘是单例模式,因此不需要为底盘建立单独的结构体 */
 static Publisher_t *chassis_pub;                    // 用于发布底盘的数据
 static Subscriber_t *chassis_sub;                   // 用于订阅底盘的控制命令                                             // !ONE_BOARD
@@ -105,7 +105,6 @@ static joint_cali_s cali;
 static off_ground_flag_e off_ground_flag = ON_GROUND;
 float chassis_debug = 0;
 
-
 void ChassisInit()
 {	
 	chassis_IMU_data = GetInsData();
@@ -124,7 +123,11 @@ void ChassisInit()
 	wheel_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	wheel_l = DJIMotorInit(&wheel_motor_config);
 
-	wheel_motor_config.can_init_config.tx_id = 2;
+	/* 2026-09-13：右轮 tx_id 改 4，与 C620 电调的实际 ID 对齐（本车 左轮=1 / 右轮=4）。
+	   tx_id 必须等于电调 ID —— 它同时决定两件事（dji_motor.c 的 MotorSenderGrouping）：
+	     rx_id = 0x200 + tx_id       → 收到的反馈 ID（右轮 = 0x204）
+	     0x200 帧里的第 tx_id 组字节  → 电调按自己的 ID 读对应槽位 */
+	wheel_motor_config.can_init_config.tx_id = 4;
 	wheel_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	wheel_r = DJIMotorInit(&wheel_motor_config);
 
@@ -136,29 +139,28 @@ void ChassisInit()
 			.close_loop_type = OPEN_LOOP,
 			.feedforward_flag = FEEDFORWARD_NONE,
 		},
-		.motor_type = DMJ4310,
+		.motor_type = DMJ8009,
 	};
 
-	joint_motor_config.can_init_config.tx_id = 1;
-	joint_motor_config.can_init_config.rx_id = 1;
+	joint_motor_config.can_init_config.tx_id = 3;
+	joint_motor_config.can_init_config.rx_id = 0x13;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_lf = DMMotorInit(&joint_motor_config);
 
 	joint_motor_config.can_init_config.tx_id = 2;
-	joint_motor_config.can_init_config.rx_id = 2;
+	joint_motor_config.can_init_config.rx_id = 0x12;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_rf = DMMotorInit(&joint_motor_config);
 
-	joint_motor_config.can_init_config.tx_id = 3;
-	joint_motor_config.can_init_config.rx_id = 3;
+	joint_motor_config.can_init_config.tx_id = 1;
+	joint_motor_config.can_init_config.rx_id = 0x11;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_lb = DMMotorInit(&joint_motor_config);
 
 	joint_motor_config.can_init_config.tx_id = 4;
-	joint_motor_config.can_init_config.rx_id = 4;
+	joint_motor_config.can_init_config.rx_id = 0x14;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_rb = DMMotorInit(&joint_motor_config);
-
 
 	//PID控制器初始化
 	//腿长补偿
@@ -518,8 +520,18 @@ static void SetWheelTorque()
 		case CHASSIS_BALANCE:										//lqr基础力矩叠加yaw转向pid
 			if(off_ground_flag == ON_GROUND)
 			{	
-				ref = chassis_cmd_recv.chassis_yaw_speed_set;		//没有云台，yaw暂时只用速度环
-				measure = chassis_IMU_data->Gyro[2];										
+				if(chassis_cmd_recv.chassis_yaw_mode == CHASSIS_FOLLOW_GIMBAL_YAW)
+				{
+					/* 跟随模式：yaw 速度指令完全由跟随环给（外环在 gimbal.c）。
+					   这个模式下左摇杆不参与 yaw —— 手动转向会和跟随环的目标打架 */
+					ref = GimbalYawFollowLoop(1);
+				}
+				else
+				{
+					GimbalYawFollowLoop(0);   //不在跟随：复位外环锁存，下次进入重新锁存目标
+					ref = chassis_cmd_recv.chassis_yaw_speed_set;			//不跟随/小陀螺：yaw 只走速度环，指令来自 robot_cmd.c 的左摇杆
+				}
+				measure = chassis_IMU_data->Gyro[2];
 				PIDCalculate(&yaw_pid, measure, ref);
 
 				T_Wheel_set[0] = T[0] + yaw_pid.Output;

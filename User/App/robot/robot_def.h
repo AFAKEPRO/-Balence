@@ -35,7 +35,7 @@
 #define LEG_M 2.054f
 #define LEG_LEN_MIN 0.065f
 #define LEG_LEN_MAX 0.152f
-#define REDUCTION_RATIO_WHEEL 19.0f // 电机减速比,因为编码器量测的是转子的速度而不是输出轴的速度故需进行转换
+#define REDUCTION_RATIO_WHEEL (268.0f / 17.0f) // 电机减速比 268:17 ≈ 15.765,因为编码器量测的是转子的速度而不是输出轴的速度故需进行转换
 #define RADIUS_WHEEL 0.076f             // 轮子半径
 #define INIT_LEG_LEN 0.065f
 #define CALI_TORQUE 1.0f

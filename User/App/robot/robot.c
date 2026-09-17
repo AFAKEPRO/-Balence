@@ -12,6 +12,7 @@
 
 #include "robot_cmd.h"
 #include "chassis_control.h"
+#include "gimbal.h"
 #include "cmd_send.h"
 
 //static BuzzzerInstance *imu_cail_buzzer;
@@ -23,7 +24,8 @@ void RobotInit(void)
 	while (BMI088_init(0) != BMI088_NO_ERROR){};
 	BuzzerInit();
 	RobotCmdInit();
-	ChassisInit();		
+	ChassisInit();
+	GimbalInit();
 //	CmdRevInit();
 	
 	OSTaskInit();

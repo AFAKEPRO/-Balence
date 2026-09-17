@@ -102,6 +102,10 @@ typedef struct
 
         uint8_t switch_left;  // 左侧开关
         uint8_t switch_right; // 右侧开关
+        /* 2026-09-12 新增：A板 ET08A(SBUS) 多解出的两个两档开关，经 CAN 0x162 的 data[4]/data[3] 传下来。
+           取值同 RC_SW_UP(1)/RC_SW_DOWN(2)，两档无中位；C板 没有 char s[] 那套，所以单独加字段。 */
+        uint8_t switch_fire; // SD 发弹（两档, 1=UP 2=DOWN）
+        uint8_t switch_jump; // SA 跳跃（两档, 1=UP 2=DOWN）
     } rc;
     struct
     {
@@ -121,12 +125,14 @@ typedef struct
 /* ------------------------- Internal Data ----------------------------------- */
 
 /**
- * @brief 初始化遥控器,该函数会将遥控器注册到串口
+ * @brief 初始化遥控器,该函数会将遥控器注册到 CAN 服务(hcan2)
  *
- * @attention 注意分配正确的串口硬件,遥控器在C板上使用USART3
- *
+ * @attention 2026-09-12 起遥控不再由本板串口接收:接收机接在 A板 USART1,
+ *            A板 解 SBUS 后按 18B DBUS 布局拆成 0x160/0x161/0x162 三帧发 CAN2。
+ *            本模块收这三帧拼回 18B,再喂现成的 sbus_to_rc()。
+ *            (台架单测若要本板直读接收机,见交接文档的备用方案,当前未启用)
  */
-RC_ctrl_t *RemoteControlInit(UART_HandleTypeDef *rc_usart_handle);
+RC_ctrl_t *RemoteControlInit(void);
 
 /**
  * @brief 检查遥控器是否在线,若尚未初始化也视为离线

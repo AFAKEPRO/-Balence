@@ -126,6 +126,7 @@ typedef enum
     HT04,
 	RMD7025,
 	DMJ4310,
+	DMJ8009,
 } Motor_Type_e;
 
 /**
