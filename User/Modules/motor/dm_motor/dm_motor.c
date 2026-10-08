@@ -124,6 +124,8 @@ void DMMotorSetRef(DMMotorInstance *motor, float ref)
 
 void DMMotorEnable(DMMotorInstance *motor)
 {
+    if (motor->stop_flag == MOTOR_ENALBED)   // 已使能，避免每周期重复下发使能命令
+        return;
     motor->stop_flag = MOTOR_ENALBED;
 	if(motor->measure.state != DM_ENABLE)
 	{

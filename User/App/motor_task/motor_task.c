@@ -12,7 +12,7 @@ void MotorControlTask(void)
 	FeedForwardControl();
 	DJIMotorControl();
 //	RMDMotorControl();
-	if(cnt%2==0) //500hz
+	if(cnt%1==0) //dmmotor @ task period (2ms = 500hz)
 		DMMotorControl();
 //	if(cnt%10==0) //100hz
 

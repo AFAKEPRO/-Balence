@@ -1,19 +1,19 @@
 /**
   ****************************(C) COPYRIGHT 2019 DJI****************************
   * @file       chassis_control.c/h
-  * @brief      轮腿底盘控制实现函数，包括底盘初始化，关节电机校准，底盘解算和控制
-  * 			控制链路：1.计算关节电机的相对角度
-  * 					 2.五连杆解算，得到虚拟腿长和虚拟腿角
-  * 					 3.更新空间状态向量
+  * @brief      轮腿底盘控制实现函数，包括底盘初始化，关节电机校准，底盘解算和控�?
+  * 			控制链路�?.计算关节电机的相对角�?
+  * 					 2.五连杆解算，得到虚拟腿长和虚拟腿�?
+  * 					 3.更新空间状态向�?
   * 					 4.计算增益矩阵，根据LQR计算出基础的控制输出矩阵（基础轮力矩和基础髋力矩）
-  * 					 5.根据不同状态机，计算驱动轮的输出力矩
-  * 					 6.根据不同状态机，计算虚拟腿力
-  * 					 7.根据不同状态机，计算虚拟髋关节合力矩
-  * 					 8.根据不同状态机，计算四个关节电机的输出力矩（集成VMC）
+  * 					 5.根据不同状态机，计算驱动轮的输出力�?
+  * 					 6.根据不同状态机，计算虚拟腿�?
+  * 					 7.根据不同状态机，计算虚拟髋关节合力�?
+  * 					 8.根据不同状态机，计算四个关节电机的输出力矩（集成VMC�?
   *                      9.根据关节电机实际输出力矩，计算虚拟腿力和力矩
   * @todo		1.确定机体机械常数，机械限位，电机安装方向，imu方向。重新敲定pid参数，重力补偿的数值和VMC限幅
-  *             2.增加跳跃状态机的控制链路
-  * 			3.小陀螺
+  *             2.增加跳跃状态机的控制链�?
+  * 			3.小陀�?
   * 			4.增加离地检测，计算腿长速度和加速度			
   * @note       
   * @history
@@ -55,38 +55,45 @@
 	- (k4)*(ptr)->chassis_pitch                   \
 	- (k5)*(ptr)->chassis_pitch_speed                  \
 ) 
-/* 底盘应用包含的模块和信息存储,底盘是单例模式,因此不需要为底盘建立单独的结构体 */
-static Publisher_t *chassis_pub;                    // 用于发布底盘的数据
-static Subscriber_t *chassis_sub;                   // 用于订阅底盘的控制命令                                             // !ONE_BOARD
+/* 底盘应用包含的模块和信息存储,底盘是单例模�?因此不需要为底盘建立单独的结构体 */
+static Publisher_t *chassis_pub;                    // 用于发布底盘的数�?
+static Subscriber_t *chassis_sub;                   // 用于订阅底盘的控制命�?                                            // !ONE_BOARD
 Chassis_Ctrl_Cmd_s chassis_cmd_recv;         		// 底盘接收到的控制命令
-Chassis_Upload_Data_s chassis_feedback_data; // 底盘回传的反馈数据
+Chassis_Upload_Data_s chassis_feedback_data; // 底盘回传的反馈数�?
 
 static attitude_t *chassis_IMU_data;
 
-//驱动轮电机
+//驱动轮电�?
 DJIMotorInstance *wheel_l, *wheel_r;
 DJIMotorInstance DEBUG_WHEEL;
+/* JScope wheel debug: scalar globals for direct left/right symbol watch. */
+volatile float DBG_WHEEL_CURRENT_L;
+volatile float DBG_WHEEL_CURRENT_R;
+volatile float DBG_WHEEL_CMD_L;
+volatile float DBG_WHEEL_CMD_R;
+volatile float DBG_WHEEL_SPEED_L;
+volatile float DBG_WHEEL_SPEED_R;
 
 //关节电机
 DMMotorInstance *joint_lf, *joint_rf, *joint_lb, *joint_rb;
 DMMotorInstance DEBUG_JOINT;
 
-//PID控制器
-PIDInstance leg_pid[2], roll_pid;      					//虚拟腿力pid控制器
-PIDInstance delta_ang_pid, delta_ang_speed_pid;         //虚拟力矩pid控制器
+//PID控制�?
+PIDInstance leg_pid[2], roll_pid;      					//虚拟腿力pid控制�?
+PIDInstance delta_ang_pid, delta_ang_speed_pid;         //虚拟力矩pid控制�?
 PIDInstance yaw_pid;                					//驱动轮转向yaw补偿
 PIDInstance	vx_pid, down_yaw_pid, down_yaw_speed_pid;
 
-//滤波器
+//滤波�?
 static first_order_filter_type_t leg_pitch_speed_filter [2];
 static const float leg_pitch_filter_num[1] = {0.004f};
 
 //腿部机构的角度和腿长变量
 static float leg_len[2], ang[2];
 static float leg_len_avg, ang_avg;
-static float ang_1[2], ang_2[2], ang_3[2], ang_4[2];    //Five_Rod_solve所用到的临时参数  规定ang_1为五连杆的前一个角度
+static float ang_1[2], ang_2[2], ang_3[2], ang_4[2];    //Five_Rod_solve所用到的临时参�? 规定ang_1为五连杆的前一个角�?
 
-//腿部机构的力和力矩变量
+//腿部机构的力和力矩变�?
 static float T[2], Tp[2], T_Wheel_set[2];
 static float Virtual_Force[2], Virtual_Torque[2];       //VMC
 static float Torque_f[2], Torque_b[2];
@@ -94,9 +101,13 @@ static float Actual_Force[2], Actual_Torque[2];
 
 //机体变量
 static float vx, v_fusion;
-static float leg_pitch[2], leg_pitch_speed[2];					//左右机构各自的腿部状态向量的数据，临时变量，用来计算平均的
+static float leg_pitch[2], leg_pitch_speed[2];					//左右机构各自的腿部状态向量的数据，临时变量，用来计算平均�?
 
-chassis_control_s state_vector;                			//状态向量
+
+float DEBUG_ang[2], DEBUG_leg_len[2], DEBUG_ang_1[2], DEBUG_leg_pitch[2];
+volatile float DEBUG_ang_2[2];
+
+chassis_control_s state_vector;                			//状态向�?
 
 static uint32_t dwt_cnt;
 static float dt;										//时间微分
@@ -118,20 +129,17 @@ void ChassisInit()
 		},
 		.motor_type = M3508,
 	};
-	//@todo确定一下电机要不要反转
+
 	wheel_motor_config.can_init_config.tx_id = 1;
-	wheel_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+	wheel_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
 	wheel_l = DJIMotorInit(&wheel_motor_config);
 
-	/* 2026-09-13：右轮 tx_id 改 4，与 C620 电调的实际 ID 对齐（本车 左轮=1 / 右轮=4）。
-	   tx_id 必须等于电调 ID —— 它同时决定两件事（dji_motor.c 的 MotorSenderGrouping）：
-	     rx_id = 0x200 + tx_id       → 收到的反馈 ID（右轮 = 0x204）
-	     0x200 帧里的第 tx_id 组字节  → 电调按自己的 ID 读对应槽位 */
+
 	wheel_motor_config.can_init_config.tx_id = 4;
 	wheel_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	wheel_r = DJIMotorInit(&wheel_motor_config);
 
-	//关节电机初始化
+	//关节电机初始�?
 	Motor_Init_Config_s joint_motor_config = {
 		.can_init_config.can_handle = &hcan1,
 		.controller_setting_init_config = {
@@ -142,47 +150,47 @@ void ChassisInit()
 		.motor_type = DMJ8009,
 	};
 
-	joint_motor_config.can_init_config.tx_id = 3;
-	joint_motor_config.can_init_config.rx_id = 0x13;
+	joint_motor_config.can_init_config.tx_id = 4;
+	joint_motor_config.can_init_config.rx_id = 0x14;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_lf = DMMotorInit(&joint_motor_config);
+
+	joint_motor_config.can_init_config.tx_id = 1;
+	joint_motor_config.can_init_config.rx_id = 0x11;
+	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
+	joint_rf = DMMotorInit(&joint_motor_config);
 
 	joint_motor_config.can_init_config.tx_id = 2;
 	joint_motor_config.can_init_config.rx_id = 0x12;
 	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
-	joint_rf = DMMotorInit(&joint_motor_config);
-
-	joint_motor_config.can_init_config.tx_id = 1;
-	joint_motor_config.can_init_config.rx_id = 0x11;
-	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
 	joint_lb = DMMotorInit(&joint_motor_config);
 
-	joint_motor_config.can_init_config.tx_id = 4;
-	joint_motor_config.can_init_config.rx_id = 0x14;
-	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+	joint_motor_config.can_init_config.tx_id = 3;
+	joint_motor_config.can_init_config.rx_id = 0x13;
+	joint_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
 	joint_rb = DMMotorInit(&joint_motor_config);
 
 	//PID控制器初始化
 	//腿长补偿
 	PID_Init_Config_s leg_pid_config =
 	{
-		.Kp = 50.0f, 
-		.Ki = 0,   
-		.Kd = 4.0f,
-		.Output_LPF_RC = 0.1,
+		.Kp = 2000.0f, 
+		.Ki = 0.5f,   
+		.Kd = 200.0f,
+		.Output_LPF_RC = 0.1f,
 		.IntegralLimit = 0,
 		.Improve = (PID_Improvement_e)(PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_OutputFilter),
-		.MaxOut = 1000,
+		.MaxOut = 5500,
 	};
 	PIDInit(&leg_pid[0],&leg_pid_config);
 	PIDInit(&leg_pid[1],&leg_pid_config);
-	//roll轴补偿
+	//roll轴补�?
 	PID_Init_Config_s roll_pid_config =
 	{
-		.Kp = 50.0f, 
+		.Kp = 0.0f, 
 		.Ki = 0,   
-		.Kd = 4.0f,
-		.Output_LPF_RC = 0.1,
+		.Kd = 0.0f,
+		.Output_LPF_RC = 0,
 		.IntegralLimit = 0,
 		.Improve = (PID_Improvement_e)(PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_OutputFilter),
 		.MaxOut = 1000,
@@ -191,22 +199,22 @@ void ChassisInit()
 	//防劈叉角度环
 	PID_Init_Config_s delta_ang_pid_config =
 	{
-		.Kp = 50.0f, 
+		.Kp = 0.0f, 
 		.Ki = 0,   
-		.Kd = 4.0f,
-		.Output_LPF_RC = 0.1,
+		.Kd = 0.0f,
+		.Output_LPF_RC = 0,
 		.IntegralLimit = 0,
 		.Improve = (PID_Improvement_e)(PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_OutputFilter),
 		.MaxOut = 1000,
 	};
 	PIDInit(&delta_ang_pid,&delta_ang_pid_config);
-	//防劈叉速度环
+	//防劈叉速度�?
 	PID_Init_Config_s delta_ang_speed_pid_config =
 	{
-		.Kp = 50.0f, 
+		.Kp = 0.0f, 
 		.Ki = 0,   
-		.Kd = 4.0f,
-		.Output_LPF_RC = 0.1,
+		.Kd = 0.0f,
+		.Output_LPF_RC = 0,
 		.IntegralLimit = 0,
 		.Improve = (PID_Improvement_e)(PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_OutputFilter),
 		.MaxOut = 1000,
@@ -215,51 +223,51 @@ void ChassisInit()
 	//yaw转向补偿
 	PID_Init_Config_s yaw_pid_config =
 	{
-		.Kp = 50.0f, 
+		.Kp = 1.6f, 
 		.Ki = 0,   
-		.Kd = 4.0f,
-		.Output_LPF_RC = 0.1,
-		.IntegralLimit = 0,
+		.Kd = 0.16f,
+		.Output_LPF_RC = 0,
+		.IntegralLimit = 0.2f,
 		.Improve = (PID_Improvement_e)(PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_OutputFilter),
-		.MaxOut = 1000,
+		.MaxOut = 10.0f,
 	};
 	PIDInit(&yaw_pid,&yaw_pid_config);
 	//vx_pid
 	PID_Init_Config_s vx_pid_config =
 	{
-		.Kp = 50.0f, 
+		.Kp = 5.0f, 
 		.Ki = 0,   
-		.Kd = 4.0f,
-		.Output_LPF_RC = 0.1,
+		.Kd = 2.0f,
+		.Output_LPF_RC = 0.1f,
 		.IntegralLimit = 0,
 		.Improve = (PID_Improvement_e)(PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_OutputFilter),
-		.MaxOut = 1000,
-	};
+		.MaxOut = 25.0f,
+	};	
 	PIDInit(&vx_pid, &vx_pid_config);
 	PID_Init_Config_s down_yaw_pid_config = 
 	{
-		.Kp = 50.0f, 
+		.Kp = 1.8f, 
 		.Ki = 0,   
-		.Kd = 4.0f,
-		.Output_LPF_RC = 0.1,
+		.Kd = 0.2f,
+		.Output_LPF_RC = 0.1f,
 		.IntegralLimit = 0,
 		.Improve = (PID_Improvement_e)(PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_OutputFilter),
-		.MaxOut = 1000,
+		.MaxOut = 10.0f,
 	};
 	PIDInit(&down_yaw_pid, &down_yaw_pid_config);
 	PID_Init_Config_s down_yaw_speed_pid_config = 
 	{
-		.Kp = 50.0f, 
+		.Kp = 2.0f, 
 		.Ki = 0,   
-		.Kd = 4.0f,
-		.Output_LPF_RC = 0.1,
+		.Kd = 0.2f,
+		.Output_LPF_RC = 0.1f,
 		.IntegralLimit = 0,
 		.Improve = (PID_Improvement_e)(PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_OutputFilter),
-		.MaxOut = 1000,
+		.MaxOut = 10.0f,
 	};
 	PIDInit(&down_yaw_speed_pid, &down_yaw_speed_pid_config);
 
-	//一阶低通滤波器初始化
+	//一阶低通滤波器初始�?
 	first_order_filter_init(&leg_pitch_speed_filter[0], 0.002f, leg_pitch_filter_num);
 	first_order_filter_init(&leg_pitch_speed_filter[1], 0.002f, leg_pitch_filter_num);
 
@@ -311,15 +319,16 @@ uint8_t ChassisJointCaliGetResult(float joint_zero[4])
 
 
 /**
- * @brief 计算腿部关节的相对角度
+ * @brief 计算腿部关节的相对角�?
  * 
  */
 static void CalRealtiveAngle()
 {
-	ang_1[0] = joint_lf->measure.position - chassis_cmd_recv.joint_zero[0] + JOINT_LF_INIT_ANGLE;
-	ang_1[1] = joint_rf->measure.position - chassis_cmd_recv.joint_zero[1] + JOINT_RF_INIT_ANGLE;
-	ang_2[0] = joint_lb->measure.position - chassis_cmd_recv.joint_zero[2] + JOINT_LB_INIT_ANGLE;
-	ang_2[1] = joint_rb->measure.position - chassis_cmd_recv.joint_zero[3] + JOINT_RB_INIT_ANGLE;
+
+	ang_1[0] =   joint_lf->measure.position - chassis_cmd_recv.joint_zero[0] + JOINT_LF_INIT_ANGLE;
+	ang_1[1] = -(joint_rf->measure.position - chassis_cmd_recv.joint_zero[1]) + JOINT_RF_INIT_ANGLE;
+	ang_2[0] =   joint_lb->measure.position - chassis_cmd_recv.joint_zero[2] + JOINT_LB_INIT_ANGLE;
+	ang_2[1] = -(joint_rb->measure.position - chassis_cmd_recv.joint_zero[3]) + JOINT_RB_INIT_ANGLE;
 }
 
 
@@ -338,7 +347,7 @@ static float arm_sqrt_32(float in)
              /         |        \   
             /          |         \  L2
            /           |          \
-          /            |           \             ----->  正
+          /            |           \             ----->  正方向
           \            |           /
            \  ang4 d   |leg_len   /  ang3 c
             \          |         /
@@ -379,7 +388,7 @@ static void SolveFiveRod()
 		Yc=Yb + L3 * arm_sin_f32(c);
 		d=atan2f((Yc-Yd), (Xc-Xd));
 		
-		//得到虚拟腿长和虚拟腿角
+		//得到虚拟腿长和虚拟腿�?
 		leg_len[i] = arm_sqrt_32(Xc*Xc+Yc*Yc);
 		ang[i] = atan2f(Yc, Xc);
 
@@ -399,7 +408,7 @@ static void SolveFiveRod()
 }
 
 /**
- * @brief 更新空间状态向量的值
+ * @brief 更新空间状态向量的�?
  * 
  */
 static void UpdataStateVector()
@@ -412,14 +421,14 @@ static void UpdataStateVector()
 	state_vector.chassis_pitch = chassis_IMU_data->Pitch;
 	state_vector.chassis_pitch_speed = chassis_IMU_data->Gyro[1];
 
-	//计算leg_pitch的值
+	//计算leg_pitch的�?
 	leg_pitch_last[0] = leg_pitch[0];
 	leg_pitch_last[1] = leg_pitch[1];
 	leg_pitch[0] = ang[0] - state_vector.chassis_pitch - PI/2.0f;
 	leg_pitch[1] = ang[1] - state_vector.chassis_pitch - PI/2.0f;
 	state_vector.leg_pitch = (leg_pitch[0] + leg_pitch[1])/2.0f;
 
-	//一阶差分计算leg_pitch_speed，然后进行一阶低通滤波
+	//一阶差分计算leg_pitch_speed，然后进行一阶低通滤�?
 	float raw_speed[2];
 	raw_speed[0] = (leg_pitch[0] - leg_pitch_last[0])/dt;
 	raw_speed[1] = (leg_pitch[1] - leg_pitch_last[1])/dt;
@@ -431,19 +440,19 @@ static void UpdataStateVector()
 
 	//计算驱动轮线速度   @todo数据融合得到v_fusion
 	wheel_v[0] = wheel_l->measure.speed_aps * DEGREE_2_RAD / REDUCTION_RATIO_WHEEL * RADIUS_WHEEL;		//左轮线速度
-	wheel_v[1] = wheel_r->measure.speed_aps * DEGREE_2_RAD / REDUCTION_RATIO_WHEEL * RADIUS_WHEEL;
+	wheel_v[1] = -wheel_r->measure.speed_aps * DEGREE_2_RAD / REDUCTION_RATIO_WHEEL * RADIUS_WHEEL;
 	vx = (wheel_v[0] + wheel_v[1])/2.0f;																//驱动轮平均线速度
 	v_fusion = vx;				//暂时先不进行数据融合
 
 	//计算驱动轮位移x
 	wheel_x[0] = DJIMotorGetAngle(wheel_l);
-	wheel_x[1] = DJIMotorGetAngle(wheel_r);
+	wheel_x[1] = -DJIMotorGetAngle(wheel_r);//电机安装方向相反，位移和速度全部取反一�?
 	state_vector.x = (wheel_x[0] + wheel_x[1])/2.0f / REDUCTION_RATIO_WHEEL * RADIUS_WHEEL;
 	state_vector.x_set = chassis_cmd_recv.x_set;
 }
 
 /**
- * @brief 计算由LQR得出的控制输出矩阵
+ * @brief 计算由LQR得出的控制输出矩�?
  * 
  */
 static void CalLQR()
@@ -458,18 +467,18 @@ static void CalLQR()
 	}
 	else
 	{
-		K[0] = CalKArray(leg_len_avg,  83.492f,-123.701f, -37.039f);
-    	K[1] = CalKArray(leg_len_avg,  -7.552f, -19.745f,  -3.523f);
-    	K[2] = CalKArray(leg_len_avg,  30.848f, -26.459f, -23.099f);
-    	K[3] = CalKArray(leg_len_avg, -22.822f,   9.077f, -21.858f);
-    	K[4] = CalKArray(leg_len_avg,  65.444f, -61.777f,  22.881f);
-    	K[5] = CalKArray(leg_len_avg,  19.408f, -16.899f,   6.008f);
-    	K[6] = CalKArray(leg_len_avg,  54.768f, -67.650f,  41.264f);
-    	K[7] = CalKArray(leg_len_avg,   0.676f,  -1.203f,   4.183f);
-    	K[8] = CalKArray(leg_len_avg,  55.097f, -64.510f,  28.681f);
-    	K[9] = CalKArray(leg_len_avg,  46.604f, -46.241f,  18.080f);
-    	K[10] = CalKArray(leg_len_avg, -67.267f,  53.441f,  18.030f);
-    	K[11] = CalKArray(leg_len_avg, -17.167f,  13.674f,   1.482f);
+		K[0] = CalKArray(leg_len_avg,  71.591f,-102.547f, -33.805f);
+    	K[1] = CalKArray(leg_len_avg,  -5.541f, -16.723f,  -3.507f);
+    	K[2] = CalKArray(leg_len_avg,  27.347f, -22.343f, -19.070f);
+    	K[3] = CalKArray(leg_len_avg, -12.208f,   3.718f, -17.981f);
+    	K[4] = CalKArray(leg_len_avg,  56.776f, -56.271f,  21.066f);
+    	K[5] = CalKArray(leg_len_avg,  12.939f, -11.766f,   4.286f);
+    	K[6] = CalKArray(leg_len_avg,  61.196f, -72.049f,  37.073f);
+    	K[7] = CalKArray(leg_len_avg,   2.876f,  -3.755f,   4.237f);
+    	K[8] = CalKArray(leg_len_avg,  54.328f, -58.521f,  23.360f);
+    	K[9] = CalKArray(leg_len_avg,  54.359f, -50.261f,  17.271f);
+    	K[10] = CalKArray(leg_len_avg, -59.507f,  47.004f,  24.725f);
+    	K[11] = CalKArray(leg_len_avg, -12.925f,  10.127f,   1.715f);
 	}
 
 	for(int i = 0;i<2;i++)
@@ -482,7 +491,7 @@ static void CalLQR()
 /**
  * @brief 一侧腿的虚拟腿力的重力补偿计算
  * @param leg_len 一侧的腿长
- * @return 一侧腿的重力补偿
+ * @return 一侧腿的重力补�?
  * @todo   检查数组可能越界的风险
  * 
  */
@@ -511,7 +520,7 @@ static void SetWheelTorque()
 	switch(chassis_cmd_recv.chassis_mode)
 	{	
 		case CHASSIS_CALI:
-		case CHASSIS_ZERO_FORCE:									//直接给驱动轮电机力矩设0
+		case CHASSIS_ZERO_FORCE:									//直接给驱动轮电机力矩�?
 			T_Wheel_set[0] = 0;
 			T_Wheel_set[1] = 0;
 			break;
@@ -522,20 +531,20 @@ static void SetWheelTorque()
 			{	
 				if(chassis_cmd_recv.chassis_yaw_mode == CHASSIS_FOLLOW_GIMBAL_YAW)
 				{
-					/* 跟随模式：yaw 速度指令完全由跟随环给（外环在 gimbal.c）。
-					   这个模式下左摇杆不参与 yaw —— 手动转向会和跟随环的目标打架 */
+					/* 跟随模式：yaw 速度指令完全由跟随环给（外环�?gimbal.c）�?
+					   这个模式下左摇杆不参�?yaw —�?手动转向会和跟随环的目标打架 */
 					ref = GimbalYawFollowLoop(1);
 				}
 				else
 				{
 					GimbalYawFollowLoop(0);   //不在跟随：复位外环锁存，下次进入重新锁存目标
-					ref = chassis_cmd_recv.chassis_yaw_speed_set;			//不跟随/小陀螺：yaw 只走速度环，指令来自 robot_cmd.c 的左摇杆
+					ref = chassis_cmd_recv.chassis_yaw_speed_set;			//不跟�?小陀螺：yaw 只走速度环，指令来自 robot_cmd.c 的左摇杆
 				}
-				measure = chassis_IMU_data->Gyro[2];
+				measure = chassis_IMU_data->Gyro[2];//gyro[2]pitch
 				PIDCalculate(&yaw_pid, measure, ref);
 
-				T_Wheel_set[0] = T[0] + yaw_pid.Output;
-				T_Wheel_set[1] = T[1] - yaw_pid.Output;
+				T_Wheel_set[0] = T[0]; //+ //yaw_pid.Output;
+				T_Wheel_set[1] = T[1]; //- //yaw_pid.Output;
 			}
 			else
 			{	
@@ -547,7 +556,7 @@ static void SetWheelTorque()
 			}
 			break;
 
-		case CHASSIS_DOWN:											//vx_pid叠加倒地yaw转向环
+		case CHASSIS_DOWN:											//vx_pid叠加倒地yaw转向�?
 			ref = chassis_cmd_recv.vx_set;
 			measure = vx;
 			PIDCalculate(&vx_pid, measure, ref);
@@ -555,14 +564,14 @@ static void SetWheelTorque()
 		//	measure = chassis_IMU_data->Yaw;
 		//	PIDCalculate(&down_yaw_pid, measure, ref);
 			measure = chassis_IMU_data->Gyro[2];
-			ref = chassis_cmd_recv.chassis_yaw_speed_set;
+			ref = -chassis_cmd_recv.chassis_yaw_speed_set;
 			PIDCalculate(&down_yaw_speed_pid, measure, ref);
 			T_Wheel_set[0] = vx_pid.Output + down_yaw_speed_pid.Output;			
 			T_Wheel_set[1] = vx_pid.Output - down_yaw_speed_pid.Output;
 			break;
 
 		case CHASSIS_JUMP:											//两轮都用vx_pid
-			ref = chassis_cmd_recv.vx_set;
+			ref = chassis_cmd_recv.vx_set;	
 			measure = vx;
 			PIDCalculate(&vx_pid, measure, ref);
 			T_Wheel_set[0] = vx_pid.Output;			
@@ -574,9 +583,12 @@ static void SetWheelTorque()
 			T_Wheel_set[1] = 0;
 			break;	
 	}
+	//c620限幅
+	float wheel_torque_cmd_l = fp32_constrain(T_Wheel_set[0] * M3508_TORQUE_2_CURRENT, -16384.0f, 16384.0f);
+	float wheel_torque_cmd_r = fp32_constrain(T_Wheel_set[1] * M3508_TORQUE_2_CURRENT, -16384.0f, 16384.0f);
 
-	DJIMotorSetRef(wheel_l, T_Wheel_set[0] * M3508_TORQUE_2_CURRENT);
-	DJIMotorSetRef(wheel_r, T_Wheel_set[1] * M3508_TORQUE_2_CURRENT);
+	DJIMotorSetRef(wheel_l, wheel_torque_cmd_l);
+	DJIMotorSetRef(wheel_r, wheel_torque_cmd_r);
 }
 
 /**
@@ -602,7 +614,7 @@ static void CalVirtualForce()
 		
 	switch(chassis_cmd_recv.chassis_mode)
 	{	
-		case CHASSIS_CALI:						//CALI和DOWN模式下直接指定四个关节电机的力矩，用不到虚拟腿力，所以这里直接把虚拟腿力设定成0
+		case CHASSIS_CALI:						//CALI和DOWN模式下直接指定四个关节电机的力矩，用不到虚拟腿力，所以这里直接把虚拟腿力设定�?
 		case CHASSIS_DOWN:
 		case CHASSIS_ZERO_FORCE:
 			Virtual_Force[0] = 0;
@@ -634,7 +646,7 @@ static void CalVirtualForce()
 			break;
 
 		case CHASSIS_JUMP:
-			//分步走，第一步用leg_pid叠加roll_pid建立姿态和腿长，第二步以后直接指定虚拟腿力的大小
+			//分步走，第一步用leg_pid叠加roll_pid建立姿态和腿长，第二步以后直接指定虚拟腿力的大�?
 			break;
 
 		default:
@@ -663,7 +675,7 @@ static void CalVirtualTorque()
 
 		case CHASSIS_INIT:
 		case CHASSIS_JUMP:
-		case CHASSIS_BALANCE:						//基础lqr合力矩叠加防劈叉环
+		case CHASSIS_BALANCE:						//基础lqr合力矩叠加防劈叉�?
 			measure = leg_pitch[0] - leg_pitch[1];
 			PIDCalculate(&delta_ang_pid, measure, 0);
 			measure = leg_pitch_speed[0] - leg_pitch_speed[1];
@@ -681,7 +693,7 @@ static void CalVirtualTorque()
 
 /**
  * @brief VMC解算，计算出四个关节电机力矩
- * @todo 考虑是否加入限幅与奇异保护
+ * @todo 考虑是否加入限幅与奇异保�?
  * 
  */
 static void SolveVMC(void)
@@ -689,8 +701,8 @@ static void SolveVMC(void)
 	for(int i=0; i<2; i++)
 	{
 		float a = ang_1[i], b = ang_2[i], c = ang_3[i], d = ang_4[i], angle = ang[i];
-		float F = Virtual_Force[i], Ft = Virtual_Torque[i]/leg_len[i];
-		//一侧腿的前后两个关节电机解算
+		float F = Virtual_Force[i], Ft = Virtual_Torque[i]/leg_len[i];	
+		//一侧腿的前后两个关节电机解�?
 		Torque_f[i] = (L2 * arm_cos_f32(a - c + PI/2) * (Ft * arm_cos_f32(angle - d) + F * arm_sin_f32(angle - d)))/(arm_cos_f32(angle - c)*arm_sin_f32(angle - d) - arm_cos_f32(angle - d)*arm_sin_f32(angle - c));
 		Torque_b[i] = -(L2*arm_cos_f32(b - d + PI/2) * (Ft * arm_cos_f32(angle - c) + F * arm_sin_f32(angle - c)))/(arm_cos_f32(angle - c)*arm_sin_f32(angle - d) - arm_cos_f32(angle - d)*arm_sin_f32(angle - c));
 	}
@@ -708,10 +720,10 @@ static void SetJointTorque(void)
 
 				if (cali.time < CALI_HOLD_TIME)
 				{
-					Torque_f[0] =  CALI_TORQUE; 
+					Torque_f[0] = -CALI_TORQUE; 
 					Torque_f[1] = -CALI_TORQUE; 
 					Torque_b[0] =  CALI_TORQUE; 
-					Torque_b[1] = -CALI_TORQUE; 
+					Torque_b[1] =  CALI_TORQUE; 
 				}
 				else
 				{
@@ -760,7 +772,7 @@ static void SetJointTorque(void)
 			break;
 	}
 	
-	//对关节电机力矩进行限幅
+	//对关节电机力矩进行限�?
 	Torque_f[0] = fp32_constrain(Torque_f[0], DM_T_MIN, DM_T_MAX);
 	Torque_f[1] = fp32_constrain(Torque_f[1], DM_T_MIN, DM_T_MAX);
 	Torque_b[0] = fp32_constrain(Torque_b[0], DM_T_MIN, DM_T_MAX);
@@ -793,7 +805,7 @@ static void SolveRealWrench()
 
 }
 
-/* 机器人底盘控制核心任务 */
+/* 机器人底盘控制核心任�?*/
 void ChassisTask(void)
 {
     // 获取新的控制信息
@@ -805,7 +817,7 @@ void ChassisTask(void)
 	dt = DWT_GetDeltaT(&dwt_cnt);
 
     if (chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE)
-    { // 如果出现重要模块离线或遥控器设置为急停,让电机停止
+    { // 如果出现重要模块离线或遥控器设置为急停,让电机停�?
         DMMotorStop(joint_lf);
         DMMotorStop(joint_rf);
         DMMotorStop(joint_lb);
@@ -835,6 +847,20 @@ void ChassisTask(void)
 	SetJointTorque();
 	SolveRealWrench();
 
+	//debug information for chassis control
+	DEBUG_ang[0] = ang[0];             DEBUG_ang[1] = ang[1];
+	DEBUG_leg_len[0] = leg_len[0];     DEBUG_leg_len[1] = leg_len[1];
+	DEBUG_ang_1[0] = ang_1[0];         DEBUG_ang_1[1] = ang_1[1];
+	DEBUG_ang_2[0] = ang_2[0];         DEBUG_ang_2[1] = ang_2[1];
+	DEBUG_leg_pitch[0] = leg_pitch[0]; DEBUG_leg_pitch[1] = leg_pitch[1];
+
+	DBG_WHEEL_CURRENT_L = (float)wheel_l->measure.real_current;
+	DBG_WHEEL_CURRENT_R = (float)wheel_r->measure.real_current;
+	DBG_WHEEL_CMD_L = wheel_l->motor_controller.pid_ref;
+	DBG_WHEEL_CMD_R = wheel_r->motor_controller.pid_ref;
+	DBG_WHEEL_SPEED_L = wheel_l->measure.speed_aps;
+	DBG_WHEEL_SPEED_R = wheel_r->measure.speed_aps;
+
 	//获取底盘反馈值（给后续双板通信用）
 	chassis_feedback_data.chassis_mode = chassis_cmd_recv.chassis_mode;
 	chassis_feedback_data.leg_len[0] = leg_len[0];
@@ -844,6 +870,6 @@ void ChassisTask(void)
 	chassis_feedback_data.vx = vx;
 	chassis_feedback_data.x = state_vector.x;
 
-    // 推送反馈消息
+    // 推送反馈消�?
     PubPushMessage(chassis_pub, (void *)&chassis_feedback_data);
 }

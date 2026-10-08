@@ -48,14 +48,14 @@ static void RemoteControlSet(void)
     chassis_cmd_send.last_chassis_mode = chassis_cmd_send.chassis_mode;
 
 /*==============================无力检测==============================*/
-	if (switch_is_down(rc_data[TEMP].rc.switch_left)) 				// 左侧开关状态[下],机器人停止
-	{
-		robot_state = ROBOT_STOP;                                       
-	}
-    else
-	{
-        robot_state = ROBOT_READY;
-	}
+//	if (switch_is_down(rc_data[TEMP].rc.switch_left)) 				// 左侧开关状态[下],机器人停止
+//	{
+//		robot_state = ROBOT_STOP;                                       
+//	}
+//   else
+//	{
+//        robot_state = ROBOT_READY;
+//	}
 /*==============================右拨杆==============================*/
     if (switch_is_down(rc_data[TEMP].rc.switch_right)) 				    // 右侧开关状态[下],无力模式
     {
@@ -96,6 +96,16 @@ static void RemoteControlSet(void)
 		chassis_cmd_send.chassis_yaw_mode = CHASSIS_ROTATE;
     }
 /*==============================校准检测==============================*/
+	/* SA 直接标定：必须从下拨到上，触发一次 */
+	static uint8_t last_sa_up = 1;
+	uint8_t sa_up = switch_is_up(rc_data[TEMP].rc.switch_jump);
+
+	if (sa_up && !last_sa_up)
+	{
+		CalibrateJointStart();
+	}
+	last_sa_up = sa_up;
+
 	uint8_t both_switch_down = switch_is_down(rc_data[TEMP].rc.switch_left) && switch_is_down(rc_data[TEMP].rc.switch_right);
     
     if (both_switch_down || CalibrateJointRequested())
@@ -165,11 +175,16 @@ static void EmergencyHandler(void)
         chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
         LOGERROR("[CMD] emergency stop!");
     }
-    // 遥控器右侧开关为[上],恢复正常运行
-    if (switch_is_up(rc_data[TEMP].rc.switch_right))
+    // 遥控器恢复在线即解除急停。
+    // 原实现要求"右拨杆打到[上]"才能恢复,但本车右拨杆是 [上]平衡/[中]倒地/[下]无力:
+    // 拨杆停在[中]时永远等不到[上],robot_state 被永久锁在 ROBOT_STOP,
+    // 上面那一段于是每拍把 chassis_mode 覆盖成 CHASSIS_ZERO_FORCE,
+    // 底盘走 DMMotorStop 分支,四个关节持续收到失能指令(亮红灯)。
+    if (rc_data->rc_state != 0)
     {
+        if (robot_state == ROBOT_STOP) // 只在状态跳变的那一拍打日志,避免 200Hz 刷屏
+            LOGINFO("[CMD] reinstate, robot ready");
         robot_state = ROBOT_READY;
-        LOGINFO("[CMD] reinstate, robot ready");
     }
 }
 
@@ -229,5 +244,12 @@ void RobotCMDTask(void)
 //	chassis_cmd_send.vision_state = vision_fetch_data.vision_state;
     // 其他应用所需的控制数据在remotecontrolsetmode和mousekeysetmode中完成设置
 	
+    // 关节零点实时同步: cali_data_save 在校准完成时已被更新, 必须每拍重新拷贝
+    // 否则 CalRealtiveAngle() 读到的仍是开机时 RobotCmdInit() 拷进来的旧零点
+    for(int i=0; i<4; i++)
+    {
+        chassis_cmd_send.joint_zero[i] = calibrate_data->joint_zero[i];
+    }
+
     PubPushMessage(chassis_cmd_pub, (void *)&chassis_cmd_send);
 }

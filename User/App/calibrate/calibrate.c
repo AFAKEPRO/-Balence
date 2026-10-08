@@ -193,6 +193,15 @@ void CalibrateJointCancel(void)
     state = CAIL_OFF;
 }
 
+void CalibrateJointStart(void)
+{
+    if (state == CAIL_IMU || state == CAIL_JOINT)
+        return;
+
+    ChassisJointCaliStart();
+    state = CAIL_JOINT;
+}
+
 static void IMUCalibrateControl(void)
 {
 	vTaskSuspendAll();		//关闭任务调度

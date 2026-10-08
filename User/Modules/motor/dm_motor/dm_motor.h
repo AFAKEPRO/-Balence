@@ -12,8 +12,8 @@
 #define DM_P_MAX  3.1415926f
 #define DM_V_MIN  (-45.0f)
 #define DM_V_MAX  45.0f
-#define DM_T_MIN  (-18.0f)
-#define DM_T_MAX   18.0f
+#define DM_T_MIN  (-54.0f)
+#define DM_T_MAX   54.0f
 
 typedef enum
 {

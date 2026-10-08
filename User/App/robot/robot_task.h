@@ -33,7 +33,7 @@ void StartROBOTTASK(void const *argument);
 void OSTaskInit(void)
 {
 	osThreadDef(instask, StartINSTASK, osPriorityRealtime, 0, 1024);
-    insTaskHandle = osThreadCreate(osThread(instask), NULL); // 由于是阻塞读取传感器,为姿态解算设置较高优先级,确保以1khz的频率执行
+    insTaskHandle = osThreadCreate(osThread(instask), NULL); // 由于是阻塞读取传感器,为姿态解算设置较高优先级,确保�?khz的频率执�?
 	
 	osThreadDef(motortask, StartMOTORTASK, osPriorityNormal, 0, 256);
     motorTaskHandle = osThreadCreate(osThread(motortask), NULL);
@@ -61,7 +61,7 @@ __attribute__((noreturn)) void StartINSTASK(void const *argument)
         ins_dt = DWT_GetTimeline_ms() - ins_start;
         if (ins_dt > 1)
             LOGERROR("[freeRTOS] INS Task is being DELAY! dt = [%f]", &ins_dt);
-//        VisionSend(); // 解算完成后发送视觉数据,但是当前的实现不太优雅,后续若添加硬件触发需要重新考虑结构的组织
+//        VisionSend(); // 解算完成后发送视觉数�?但是当前的实现不太优�?后续若添加硬件触发需要重新考虑结构的组�?
         osDelay(1);
     }
 }
@@ -78,7 +78,7 @@ __attribute__((noreturn)) void StartMOTORTASK(void const *argument)
         motor_dt = DWT_GetTimeline_ms() - motor_start;
         if (motor_dt > 1)
             LOGERROR("[freeRTOS] MOTOR Task is being DELAY! dt = [%f]", &motor_dt);
-        osDelay(1);
+        osDelay(2);
     }
 }
 
@@ -106,13 +106,13 @@ __attribute__((noreturn)) void StartROBOTTASK(void const *argument)
     static float robot_dt;
     static float robot_start;
     LOGINFO("[freeRTOS] ROBOT core Task Start");
-    // 200Hz-500Hz,若有额外的控制任务如平衡步兵可能需要提升至1kHz
+    // 500Hz balance control loop
     for (;;)
     {
         robot_start = DWT_GetTimeline_ms();
         RobotTask();
         robot_dt = DWT_GetTimeline_ms() - robot_start;
-        if (robot_dt > 2)
+        if (robot_dt > 1)
             LOGERROR("[freeRTOS] ROBOT core Task is being DELAY! dt = [%f]", &robot_dt);
         osDelay(2);
     }

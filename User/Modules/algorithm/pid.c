@@ -90,7 +90,7 @@ float PID_calc(pid_type_def *pid, float ref, float set)
     pid->error[2] = pid->error[1];
     pid->error[1] = pid->error[0];
     pid->set = set;
-    pid->fdb = ref;
+    pid->fdb = ref; 
     pid->error[0] = set - ref;
     if (pid->mode == PID_POSITION)
     {

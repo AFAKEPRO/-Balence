@@ -22,25 +22,25 @@
 #define GYRO2GIMBAL_DIR_ROLL 1  // 陀螺仪数据相较于云台的roll的方向,1为相同,-1为相反
 
 #define X_MAX 4.476769531f//小轮子
-#define JOINT_LF_INIT_ANGLE 0.1f
-#define JOINT_RF_INIT_ANGLE 0.1f
-#define JOINT_LB_INIT_ANGLE 0.1f
-#define JOINT_RB_INIT_ANGLE 0.1f
-#define L1 0.1f        //虚拟转轴
-#define L2 0.1f        //大腿
-#define L3 0.1f        //小腿
-//半边机体质量（9.85kg/2）
-#define HALF_BODY_M 7.555f  //8.0f
-//腿的质量 (kg) 1.027*20
-#define LEG_M 2.054f
-#define LEG_LEN_MIN 0.065f
-#define LEG_LEN_MAX 0.152f
+#define JOINT_LF_INIT_ANGLE -0.6283f
+#define JOINT_RF_INIT_ANGLE -0.6283f
+#define JOINT_LB_INIT_ANGLE 3.7699f
+#define JOINT_RB_INIT_ANGLE 3.7699f
+#define L1 0.085f        //虚拟转轴
+#define L2 0.120f        //大腿
+#define L3 0.270f        //小腿
+//半边机体质量（11.85kg/2）
+#define HALF_BODY_M 5.925f  //8.0f
+//腿的质量 (kg) 1.027*2
+#define LEG_M 1.08f
+#define LEG_LEN_MIN 0.16f
+#define LEG_LEN_MAX 0.36f
 #define REDUCTION_RATIO_WHEEL (268.0f / 17.0f) // 电机减速比 268:17 ≈ 15.765,因为编码器量测的是转子的速度而不是输出轴的速度故需进行转换
-#define RADIUS_WHEEL 0.076f             // 轮子半径
-#define INIT_LEG_LEN 0.065f
-#define CALI_TORQUE 1.0f
+#define RADIUS_WHEEL 0.06f             // 轮子半径
+#define INIT_LEG_LEN 0.16f
+#define CALI_TORQUE 4.0f
 #define CALI_HOLD_TIME 3.0f
-#define M3508_TORQUE_2_CURRENT 5400.0f
+#define M3508_TORQUE_2_CURRENT 2598.15f
 //关节电机备用的零点
 #define RESERVE_JOINT_ZERO_0 0.1f 
 #define RESERVE_JOINT_ZERO_1 0.1f
