@@ -71,6 +71,11 @@ typedef struct
     uint32_t lost_cnt;
 }DMMotorInstance;
 
+extern volatile uint32_t DBG_DM_FEEDBACK_CNT[DM_MOTOR_CNT];
+extern volatile uint32_t DBG_DM_TORQUE_TX_CNT[DM_MOTOR_CNT];
+extern volatile uint32_t DBG_DM_TORQUE_TX_FAIL_CNT[DM_MOTOR_CNT];
+extern volatile uint32_t DBG_DM_MODE_TX_FAIL_CNT[DM_MOTOR_CNT];
+
 DMMotorInstance *DMMotorInit(Motor_Init_Config_s *config);
 
 void DMMotorSetRef(DMMotorInstance *motor, float ref);

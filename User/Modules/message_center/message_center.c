@@ -88,15 +88,15 @@ uint8_t SubGetMessage(Subscriber_t *sub, void *data_ptr)
         return 0;
     }
     memcpy(data_ptr, sub->queue[sub->front_idx], sub->data_len);
-    sub->front_idx = (sub->front_idx++) % QUEUE_SIZE; // 队列头索引增加
+    sub->front_idx = (sub->front_idx + 1) % QUEUE_SIZE; // 队列头索引增加
     sub->temp_size--;                                 // pop一个数据,长度减1
     return 1;
 }
 
 uint8_t PubPushMessage(Publisher_t *pub, void *data_ptr)
 {
-    static Subscriber_t *iter;
-    iter = pub->first_subs; // iter作为订阅者指针,遍历订阅该话题的所有订阅者;如果为空说明遍历结束
+    Subscriber_t *iter = pub->first_subs;
+    // iter作为订阅者指针,遍历订阅该话题的所有订阅者;如果为空说明遍历结束
     // 遍历订阅了当前话题的所有订阅者,依次填入最新消息
     while (iter)
     {

@@ -33,19 +33,19 @@
 #define HALF_BODY_M 5.925f  //8.0f
 //腿的质量 (kg) 1.027*2
 #define LEG_M 1.08f
-#define LEG_LEN_MIN 0.16f
-#define LEG_LEN_MAX 0.36f
+#define LEG_LEN_MIN 0.13f
+#define LEG_LEN_MAX 0.35f
 #define REDUCTION_RATIO_WHEEL (268.0f / 17.0f) // 电机减速比 268:17 ≈ 15.765,因为编码器量测的是转子的速度而不是输出轴的速度故需进行转换
 #define RADIUS_WHEEL 0.06f             // 轮子半径
-#define INIT_LEG_LEN 0.16f
+#define INIT_LEG_LEN 0.15f
 #define CALI_TORQUE 4.0f
 #define CALI_HOLD_TIME 3.0f
 #define M3508_TORQUE_2_CURRENT 2598.15f
 //关节电机备用的零点
-#define RESERVE_JOINT_ZERO_0 0.1f 
-#define RESERVE_JOINT_ZERO_1 0.1f
-#define RESERVE_JOINT_ZERO_2 0.1f
-#define RESERVE_JOINT_ZERO_3 0.1f
+#define RESERVE_JOINT_ZERO_0 1.607f 
+#define RESERVE_JOINT_ZERO_1 -2.994f
+#define RESERVE_JOINT_ZERO_2 -0.806f
+#define RESERVE_JOINT_ZERO_3 -2.597f
 
 // 检查是否出现主控板定义冲突,只允许一个开发板定义存在,否则编译会自动报错
 //#if (defined(ONE_BOARD) && defined(CHASSIS_BOARD)) || \

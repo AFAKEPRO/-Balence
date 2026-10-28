@@ -23,6 +23,8 @@ attitude_t *ins_data;
 cali_data_t *calibrate_data;
 RC_ctrl_t RC_DEBUG;
 float debug_flag = 0;
+volatile float DBG_CMD_SEND_LEG_LEN_SET;
+volatile uint8_t DBG_CMD_SEND_CHASSIS_MODE;
 
 static Publisher_t *chassis_cmd_pub;   		// 底盘控制消息发布者
 static Subscriber_t *chassis_feed_sub; 		// 底盘反馈信息订阅者
@@ -251,5 +253,7 @@ void RobotCMDTask(void)
         chassis_cmd_send.joint_zero[i] = calibrate_data->joint_zero[i];
     }
 
+    DBG_CMD_SEND_LEG_LEN_SET = chassis_cmd_send.leg_len_set;
+    DBG_CMD_SEND_CHASSIS_MODE = (uint8_t)chassis_cmd_send.chassis_mode;
     PubPushMessage(chassis_cmd_pub, (void *)&chassis_cmd_send);
 }

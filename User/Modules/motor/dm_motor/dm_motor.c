@@ -11,6 +11,21 @@
 static uint8_t idx;
 static DMMotorInstance *dm_motor_instance[DM_MOTOR_CNT];
 
+volatile uint32_t DBG_DM_FEEDBACK_CNT[DM_MOTOR_CNT];
+volatile uint32_t DBG_DM_TORQUE_TX_CNT[DM_MOTOR_CNT];
+volatile uint32_t DBG_DM_TORQUE_TX_FAIL_CNT[DM_MOTOR_CNT];
+volatile uint32_t DBG_DM_MODE_TX_FAIL_CNT[DM_MOTOR_CNT];
+
+static int8_t DMMotorGetIndex(DMMotorInstance *motor)
+{
+    for (uint8_t i = 0; i < idx; i++)
+    {
+        if (dm_motor_instance[i] == motor)
+            return (int8_t)i;
+    }
+    return -1;
+}
+
 /* 两个用于将uint值和float值进行映射的函数,在设定发送值和解析反馈值时使用 */
 static uint16_t float_to_uint(float x, float x_min, float x_max, uint8_t bits)
 {
@@ -27,9 +42,14 @@ static float uint_to_float(int x_int, float x_min, float x_max, int bits)
 
 static void DMMotorSetMode(DMMotor_Mode_e cmd, DMMotorInstance *motor)
 {
-    memset(motor->motor_can_instace->tx_buff, 0xff, 7);  // 发送电机指令的时候前面7bytes都是0xff
-    motor->motor_can_instace->tx_buff[7] = (uint8_t)cmd; // 最后一位是命令id
-    CANTransmit(motor->motor_can_instace, 1);
+    uint8_t tx_ok;
+    int8_t motor_idx;
+    memset(motor->motor_can_instace->tx_buff, 0xff, 7);
+    motor->motor_can_instace->tx_buff[7] = (uint8_t)cmd;
+    tx_ok = CANTransmit(motor->motor_can_instace, 1);
+    motor_idx = DMMotorGetIndex(motor);
+    if ((!tx_ok) && motor_idx >= 0)
+        DBG_DM_MODE_TX_FAIL_CNT[motor_idx]++;
 }
 
 static void DMMotorDecode(CANInstance *motor_can)
@@ -45,6 +65,9 @@ static void DMMotorDecode(CANInstance *motor_can)
 	
 	measure->id = rxbuff[0] & 0x0F;
 	measure->state = (DMMotor_Error_e)((rxbuff[0] >> 4 ) & 0x0F);
+	int8_t motor_idx = DMMotorGetIndex(motor);
+	if (motor_idx >= 0)
+		DBG_DM_FEEDBACK_CNT[motor_idx]++;
 	
     tmp = (uint16_t)((rxbuff[1] << 8) | rxbuff[2]);
     measure->position = uint_to_float(tmp, DM_P_MIN, DM_P_MAX, 16);
@@ -225,7 +248,16 @@ void DMMotorControl(void)
 		motor->motor_can_instace->tx_buff[6] = (uint8_t)(((motor_send_mailbox.Kd & 0xF) << 4) | (motor_send_mailbox.torque_des >> 8));
 		motor->motor_can_instace->tx_buff[7] = (uint8_t)(motor_send_mailbox.torque_des);
 
-		CANTransmit(motor->motor_can_instace, 1);	
+		if (CANTransmit(motor->motor_can_instace, 1))
+		{
+			if (i < DM_MOTOR_CNT)
+				DBG_DM_TORQUE_TX_CNT[i]++;
+		}
+		else
+		{
+			if (i < DM_MOTOR_CNT)
+				DBG_DM_TORQUE_TX_FAIL_CNT[i]++;
+		}
 	}
 	
 }
